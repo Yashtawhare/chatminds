@@ -4,13 +4,9 @@ from werkzeug.utils import secure_filename
 import sqlite3
 import uuid
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'osho')
+app.secret_key = 'osho'
 
 data_dir = 'data'
 if not os.path.exists(data_dir):
@@ -458,7 +454,4 @@ def delete_user(user_id):
 
     
 if __name__ == '__main__':
-    port = int(os.getenv('FRONTEND_PORT', 5000))
-    host = os.getenv('HOST', '0.0.0.0')
-    debug = os.getenv('FLASK_ENV') != 'production'
-    app.run(host=host, port=port, debug=debug)
+    app.run(debug=True)
