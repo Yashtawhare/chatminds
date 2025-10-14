@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chatbot Widget</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    #chatbot-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #39a73d;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: larger;
+      cursor: pointer;
+      z-index: 9999;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+
+    #chatbot-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 350px;
+      height: 500px;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      font-family: 'Helvetica Neue', sans-serif;
+    }
+
+    #chat-header {
+      background-color: #4CAF50;
+      color: #fff;
+      padding: 10px;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #chat-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    #chat-messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+
+    .user-message {
+      background-color: #DCF8C6;
+      align-self: flex-end;
+      text-align: right;
+      border-top-right-radius: 0;
+    }
+
+    .bot-message {
+      background-color: #F1F0F0;
+      align-self: flex-start;
+      text-align: left;
+      border-top-left-radius: 0;
+    }
+
+    #chat-input {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+
+    #message-input {
+      flex-grow: 1;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      outline: none;
+    }
+
+    #send-button {
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      margin-left: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* For mobile phones: */
+@media only screen and (max-width: 600px) {
+  #chatbot-widget {
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    right: 0;
+  }
+  
+  #chat-messages {
+    max-height: 70vh;
+  }
+
+  .message {
+    max-width: 90%;
+  }
+}
+
+/* For mobile phones: */
+@media only screen and (max-width: 600px) {
+  #chatbot-widget {
+    width: 90%;
+    height: 70%;
+  }
+}
+
+/* For tablets: */
+@media only screen and (min-width: 601px) and (max-width: 1024px) {
+  #chatbot-widget {
+    width: 50%;
+    height: 80%;
+  }
+}
+
+/* For laptops/desktops: */
+@media only screen and (min-width: 1025px) {
+  #chatbot-widget {
+    width: 30%;
+    height: 70%;
+  }
+}
+
+/* For mobile phones: */
+@media only screen and (max-width: 600px) {
+  #chatbot-toggle {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* For tablets and larger devices: */
+@media only screen and (min-width: 601px) {
+  #chatbot-toggle {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+
+  </style>
+</head>
+<body>
+  <div id="chatbot-widget">
+    <div id="chat-header">
+      <h3>Chatbot</h3>
+      <i class="fas fa-times" id="close-button"></i>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input">
+      <input type="text" id="message-input" placeholder="Type your message...">
+      <button id="send-button">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </div>
+  </div>
+  <button id="chatbot-toggle">
+    <i class="fas fa-comments"></i>
+  </button>
+
+  <script>
+    const chatMessages = document.getElementById('chat-messages');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const closeButton = document.getElementById('close-button');
+    const chatbotWidget = document.getElementById('chatbot-widget');
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keyup', (event) => {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    closeButton.addEventListener('click', () => {
+      chatbotWidget.style.display = 'none';
+      chatbotToggle.style.display = 'flex';
+    });
+
+    chatbotToggle.addEventListener('click', () => {
+      chatbotWidget.style.display = 'flex';
+      chatbotToggle.style.display = 'none';
+    });
+
+    function sendMessage() {
+      const question = messageInput.value.trim();
+      if (question) {
+        addMessageToChat('user', question);
+        fetchAnswer(question);
+        messageInput.value = '';
+      }
+    }
+
+    function addMessageToChat(sender, message) {
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('message', `${sender}-message`);
+      messageElement.textContent = message;
+      chatMessages.appendChild(messageElement);
+      scrollToBottom();
+    }
+
+    function fetchAnswer(question) {
+      const url = `http://localhost:5000/get-answer?tenant_id=invimatic_test&question=${encodeURIComponent(question)}`;
+
+      fetch(url)
+        .then(response => {
+          const reader = response.body.getReader();
+          let isAnswerChunk = false;
+          const answerElement = document.createElement('div');
+          answerElement.classList.add('message', 'bot-message');
+          chatMessages.appendChild(answerElement);
+
+          function readChunk({ done, value }) {
+            if (done) {
+              if (answerElement.textContent.trim()) {
+                scrollToBottom();
+              }
+              return;
+            }
+
+            const chunk = new TextDecoder("utf-8").decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.includes('"answer_chunk":')) {
+                isAnswerChunk = true;
+              } else if (line.includes('}')) {
+                isAnswerChunk = false;
+              }
+
+              if (isAnswerChunk && line.includes('"answer_chunk": "')) {
+                const answerPart = line.split('"answer_chunk": "')[1];
+                answerElement.textContent += answerPart.slice(0, -2);
+                scrollToBottom();
+              }
+            }
+
+            return reader.read().then(readChunk);
+          }
+
+          reader.read().then(readChunk);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          addMessageToChat('bot', 'An error occurred while fetching the answer.');
+        });
+    }
+
+    function scrollToBottom() {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  </script>
+</body>
+</html>
