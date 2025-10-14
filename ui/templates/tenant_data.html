@@ -144,30 +144,6 @@
                 <button style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 10px;">Upload Documents</button>
             </a>
         </div>
-        
-        <!-- Chat Interface -->
-        <div class="row justify-content-center" style="margin-top: 30px;">
-            <div class="col-12 col-md-8">
-                <div class="card">
-                    <div class="card-header" style="background-color: #4CAF50; color: white;">
-                        <h5>Ask AI Assistant</h5>
-                    </div>
-                    <div class="card-body" style="height: 400px; overflow-y: auto;" id="chatMessages">
-                        <div class="alert alert-info">
-                            <p><strong>Welcome!</strong> Ask me questions about your uploaded documents.</p>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="questionInput" placeholder="Type your question here..." onkeypress="handleEnterKey(event)">
-                            <div class="input-group-append">
-                                <button class="btn btn-success" type="button" onclick="askQuestion()">Ask</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="row justify-content-center"></div>
         <div class="row justify-content-center"></div>
         <div class="row">
@@ -324,82 +300,6 @@
                 });
             });
         }
-        
-        // Chat functionality
-        function askQuestion() {
-            const questionInput = document.getElementById('questionInput');
-            const question = questionInput.value.trim();
-            
-            if (!question) {
-                alert('Please enter a question.');
-                return;
-            }
-            
-            // Add user message to chat
-            addMessageToChat('user', question);
-            questionInput.value = '';
-            
-            // Show loading message
-            addMessageToChat('bot', 'Thinking...', 'loading');
-            
-            // Send question to backend
-            fetch('/api/ask_question', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    tenant_id: '{{ tenant.tenant_id }}',
-                    question: question
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Remove loading message
-                removeLoadingMessage();
-                // Add bot response
-                addMessageToChat('bot', data.result || 'Sorry, I could not process your request.');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                removeLoadingMessage();
-                addMessageToChat('bot', 'An error occurred while processing your question.');
-            });
-        }
-        
-        function addMessageToChat(sender, message, messageClass = '') {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `alert ${sender === 'user' ? 'alert-primary' : 'alert-secondary'} ${messageClass}`;
-            messageDiv.style.textAlign = sender === 'user' ? 'right' : 'left';
-            messageDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'AI'}:</strong> ${message}`;
-            
-            if (messageClass === 'loading') {
-                messageDiv.id = 'loadingMessage';
-            }
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-        
-        function removeLoadingMessage() {
-            const loadingMessage = document.getElementById('loadingMessage');
-            if (loadingMessage) {
-                loadingMessage.remove();
-            }
-        }
-        
-        function handleEnterKey(event) {
-            if (event.key === 'Enter') {
-                askQuestion();
-            }
-        }
-        
         fetchDocuments();
     </script>
     <!-- Include jQuery -->

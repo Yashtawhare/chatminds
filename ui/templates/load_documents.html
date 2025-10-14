@@ -284,8 +284,8 @@
                     });
                 }
 
-                // Second API call to backend/load_document
-                return fetch('/api/load_document', {
+                // Second API call to localhost:8000/load_document
+                return fetch('http://localhost:8000/load_document', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -338,7 +338,7 @@
             var documentId = uuid.v4();
             var tenantId = '{{ tenant.tenant_id }}';
 
-            fetch('/api/load_url', {
+            fetch('http://localhost:8000/load_url', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -369,7 +369,7 @@
             var websiteInput = document.getElementById('websiteInput').value;
             var tenantId = '{{ tenant.tenant_id }}';
 
-            fetch('/api/load_website', {
+            fetch('http://localhost:8000/load_website', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

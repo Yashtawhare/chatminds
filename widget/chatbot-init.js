@@ -1,6 +1,6 @@
 (function() {
     // Replace with the actual URL where the chatbot widget is hosted
-    const chatbotUrl = '/widget/chatbot-widget.html';
+    const chatbotUrl = 'http://localhost:8080/chatbot-widget.html';
 const tenantId = 'a676ff7f-f5c4-4290-9d78-8abf5219f498'; // Replace with your tenant_id
 
 // Create an iframe element

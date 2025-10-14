@@ -235,27 +235,45 @@
     }
 
     function fetchAnswer(question) {
-      const url = `/api/ask_question`;
+      const url = `http://localhost:5000/get-answer?tenant_id=invimatic_test&question=${encodeURIComponent(question)}`;
 
-      fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tenant_id: 'invimatic_test',
-          question: question
-        })
-      })
+      fetch(url)
         .then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
+          const reader = response.body.getReader();
+          let isAnswerChunk = false;
+          const answerElement = document.createElement('div');
+          answerElement.classList.add('message', 'bot-message');
+          chatMessages.appendChild(answerElement);
+
+          function readChunk({ done, value }) {
+            if (done) {
+              if (answerElement.textContent.trim()) {
+                scrollToBottom();
+              }
+              return;
+            }
+
+            const chunk = new TextDecoder("utf-8").decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.includes('"answer_chunk":')) {
+                isAnswerChunk = true;
+              } else if (line.includes('}')) {
+                isAnswerChunk = false;
+              }
+
+              if (isAnswerChunk && line.includes('"answer_chunk": "')) {
+                const answerPart = line.split('"answer_chunk": "')[1];
+                answerElement.textContent += answerPart.slice(0, -2);
+                scrollToBottom();
+              }
+            }
+
+            return reader.read().then(readChunk);
           }
-          return response.json();
-        })
-        .then(data => {
-          // The backend returns the answer in the 'result' field
-          addMessageToChat('bot', data.result || 'Sorry, I could not process your request.');
+
+          reader.read().then(readChunk);
         })
         .catch(error => {
           console.error('Error:', error);
