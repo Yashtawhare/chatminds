@@ -1,0 +1,49 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+README.md
+DEPLOYMENT.md
+docs/
+
+# Environment files
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data directories (will be mounted as volumes)
+data/
+docs/
+
+# Node modules (if any)
+node_modules/
+
+# SSL certificates (will be mounted)
+ssl/
+
+# Backup files
+*.bak
