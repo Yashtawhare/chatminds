@@ -1,94 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Register</title>
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-        <style>
-            body {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background-color: #76a776;
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - ChatMinds</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(209, 213, 219, 0.3);
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <!-- Background decoration -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-white opacity-10 rounded-full animate-pulse"></div>
+        <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-white opacity-10 rounded-full animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+    
+    <div class="relative w-full max-w-md">
+        <!-- Logo and brand -->
+        <div class="text-center mb-8 animate-fade-in">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg mb-4 animate-float">
+                <i class="fas fa-brain text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">Join ChatMinds</h1>
+            <p class="text-blue-100">Create your account to get started</p>
+        </div>
+        
+        <!-- Register form -->
+        <div class="glass-effect rounded-2xl p-8 shadow-2xl animate-fade-in" style="animation-delay: 0.2s;">
+            <form action="/register" method="POST" class="space-y-4" x-data="registerForm()" @submit="handleSubmit">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-user mr-2 text-gray-500"></i>Username
+                        </label>
+                        <input type="text" 
+                               id="username" 
+                               name="username" 
+                               required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/90"
+                               placeholder="Enter username"
+                               x-model="formData.username">
+                    </div>
+                    
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-envelope mr-2 text-gray-500"></i>Email
+                        </label>
+                        <input type="email" 
+                               id="email" 
+                               name="email" 
+                               required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/90"
+                               placeholder="Enter email"
+                               x-model="formData.email">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="tenant_id" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-building mr-2 text-gray-500"></i>Tenant ID
+                    </label>
+                    <input type="text" 
+                           id="tenant_id" 
+                           name="tenant_id" 
+                           required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/90"
+                           placeholder="Enter tenant ID"
+                           x-model="formData.tenant_id">
+                    <p class="text-xs text-gray-500 mt-1">Contact your administrator for the tenant ID</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2 text-gray-500"></i>Password
+                        </label>
+                        <div class="relative">
+                            <input :type="showPassword ? 'text' : 'password'" 
+                                   id="password" 
+                                   name="password" 
+                                   required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/90 pr-12"
+                                   placeholder="Enter password"
+                                   x-model="formData.password">
+                            <button type="button" 
+                                    @click="showPassword = !showPassword"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2 text-gray-500"></i>Confirm
+                        </label>
+                        <div class="relative">
+                            <input :type="showConfirmPassword ? 'text' : 'password'" 
+                                   id="confirmPassword" 
+                                   name="confirmPassword" 
+                                   required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/90 pr-12"
+                                   placeholder="Confirm password"
+                                   x-model="formData.confirmPassword"
+                                   :class="{'border-red-300': formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword}">
+                            <button type="button" 
+                                    @click="showConfirmPassword = !showConfirmPassword"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                            </button>
+                        </div>
+                        <p x-show="formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword" 
+                           class="text-red-500 text-xs mt-1">Passwords do not match</p>
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <button type="submit" 
+                            :disabled="loading || !isFormValid"
+                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!loading" class="flex items-center justify-center">
+                            <i class="fas fa-user-plus mr-2"></i>Create Account
+                        </span>
+                        <span x-show="loading" class="flex items-center justify-center">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Creating Account...
+                        </span>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-gray-600">
+                    Already have an account? 
+                    <a href="/login" class="text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                        Sign in here
+                    </a>
+                </p>
+            </div>
+            
+            <!-- Password requirements -->
+            <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 class="text-sm font-medium text-blue-900 mb-2">
+                    <i class="fas fa-info-circle mr-1"></i>Account Requirements
+                </h4>
+                <ul class="text-xs text-blue-700 space-y-1">
+                    <li><i class="fas fa-check mr-1"></i>Valid email address</li>
+                    <li><i class="fas fa-check mr-1"></i>Unique username</li>
+                    <li><i class="fas fa-check mr-1"></i>Password minimum 6 characters</li>
+                    <li><i class="fas fa-check mr-1"></i>Valid tenant ID from administrator</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="text-center mt-8">
+            <p class="text-blue-100 text-sm">
+                &copy; 2024 ChatMinds. AI-powered document intelligence.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script>
+        function registerForm() {
+            return {
+                formData: {
+                    username: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    tenant_id: ''
+                },
+                showPassword: false,
+                showConfirmPassword: false,
+                loading: false,
+                
+                get isFormValid() {
+                    return this.formData.username.length > 0 &&
+                           this.formData.email.length > 0 &&
+                           this.formData.password.length >= 6 &&
+                           this.formData.password === this.formData.confirmPassword &&
+                           this.formData.tenant_id.length > 0;
+                },
+                
+                handleSubmit(e) {
+                    if (!this.isFormValid) {
+                        e.preventDefault();
+                        return;
+                    }
+                    this.loading = true;
+                    // Form will submit normally, this just shows loading state
+                }
             }
-
-            #registerForm {
-                width: 300px;
-                padding: 20px;
-                background-color: #fff;
-                border-radius: 5px;
-                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            }
-
-            #registerForm h2 {
-                text-align: center;
-                color: #008248;
-                margin-bottom: 20px;
-                font-weight: bold;
-            }
-
-            #registerForm label {
-                display: block;
-                margin-bottom: 5px;
-                font-weight: bold;
-            }
-
-            #registerForm input {
-                width: 100%;
-                padding: 10px;
-                margin-bottom: 10px;
-                border: 2px solid #008248;
-                border-radius: 5px;
-                box-sizing: border-box;
-                font-size: 16px;
-            }
-
-            #registerForm input[type="submit"] {
-                cursor: pointer;
-                background-color: #008248;
-                color: #fff;
-                border: none;
-                font-size: 18px;
-                transition: background-color 0.3s ease;
-            }
-
-            #registerForm input[type="submit"]:hover {
-                background-color: #4CAF50;
-            }
-
-            p {
-                text-align: center;
-                margin-top: 15px;
-            }
-
-            a {
-                color: #008248;
-                text-decoration: none;
-            }
-
-            a:hover {
-                text-decoration: underline;
-            }
-        </style>
-    </head>
-    <body>
-        <form id="registerForm" action="/register" method="POST" onsubmit="return validateForm()">
-            <h2>Register</h2>
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-            <label for="confirmPassword">Confirm Password:</label>
-            <input type="password" id="confirmPassword" name="confirmPassword" required>
-            <label for="tenant_id">Tenant ID:</label>
-            <input type="text" id="tenant_id" name="tenant_id" required>
-            <input type="submit" value="Register">
-            <p>Already a user? <a href="/login">Login here</a>.</p>
-        </form>
-    </body>
+        }
+    </script>
+</body>
 </html>

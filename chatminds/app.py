@@ -95,7 +95,11 @@ def create_tables():
 def index():
     if is_logged_in():
         if session['role'] == 'admin':
-            return render_template('index.html', username=session['username'])
+            return render_template('index.html', 
+                                 username=session['username'],
+                                 user_role=session.get('role'),
+                                 show_nav=True,
+                                 show_footer=True)
         else:
             return redirect(url_for('tenant_data', tenant_id=session['tenant_id']))
     else:
@@ -139,7 +143,13 @@ def load_documents(tenant_id):
     tenant = cursor.fetchone()
     conn.close()
     tenant_dict = {'tenant_id': tenant[0], 'tenant_name': tenant[1], 'created_at': tenant[2], 'updated_at': tenant[3]}
-    return render_template('load_documents.html', username=session.get('username'), tenant=tenant_dict, home_url=home_url)
+    return render_template('load_documents.html', 
+                         username=session.get('username'), 
+                         tenant=tenant_dict, 
+                         home_url=home_url,
+                         user_role=session.get('role'),
+                         show_nav=True,
+                         show_footer=True)
 
 
 @app.route('/register', methods=['POST'])
@@ -279,7 +289,15 @@ def tenant_data(tenant_id):
         return render_template('tenant_data.html', message='Tenant not found', username=session['username'], home_url=home_url, tenant=tenant)
     else:
         tenant_dict = {'tenant_id': tenant[0], 'tenant_name': tenant[1], 'created_at': tenant[2], 'updated_at': tenant[3]}
-        return render_template('tenant_data.html', tenant=tenant_dict, username=session['username'], user_profile_url='/get_user/'+session['user_id'],  home_url=home_url, base_path=os.path.dirname(os.path.abspath(__file__)))
+        return render_template('tenant_data.html', 
+                             tenant=tenant_dict, 
+                             username=session['username'], 
+                             user_profile_url='/get_user/'+session['user_id'],  
+                             home_url=home_url, 
+                             base_path=os.path.dirname(os.path.abspath(__file__)),
+                             user_role=session.get('role'),
+                             show_nav=True,
+                             show_footer=True)
     
 
 @app.route('/documents/<tenant_id>', methods=['GET'])

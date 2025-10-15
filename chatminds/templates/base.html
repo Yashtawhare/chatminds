@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ChatMinds - AI-Powered Document Intelligence{% endblock %}</title>
+    
+    <!-- Modern CSS Framework - Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Alpine.js for reactive components -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(209, 213, 219, 0.3);
+        }
+        
+        .dark-glass-effect {
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(17, 24, 39, 0.75);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+        }
+        
+        .hover-scale {
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .hover-scale:hover {
+            transform: scale(1.05);
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    {% if show_nav %}
+    <nav class="bg-white shadow-lg border-b border-gray-200" x-data="{ mobileMenuOpen: false }">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- Logo and brand -->
+                <div class="flex items-center">
+                    <a href="{% if user_role == 'admin' %}/{% else %}{{ home_url }}{% endif %}" class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-brain text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                ChatMinds
+                            </h1>
+                            <p class="text-xs text-gray-500">AI Document Intelligence</p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Desktop menu -->
+                <div class="hidden md:flex items-center space-x-4">
+                    {% if username %}
+                        <div class="flex items-center space-x-4">
+                            <!-- User menu -->
+                            <div class="relative" x-data="{ userMenuOpen: false }">
+                                <button @click="userMenuOpen = !userMenuOpen" 
+                                        class="flex items-center space-x-2 text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-white text-sm"></i>
+                                    </div>
+                                    <span class="font-medium">{{ username }}</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                
+                                <div x-show="userMenuOpen" 
+                                     @click.away="userMenuOpen = false"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                                    {% if user_profile_url %}
+                                    <a href="{{ user_profile_url }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-user-circle mr-2"></i>Profile
+                                    </a>
+                                    {% endif %}
+                                    {% if user_role == 'admin' %}
+                                    <a href="/users" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-users mr-2"></i>All Users
+                                    </a>
+                                    {% endif %}
+                                    <hr class="my-1">
+                                    <button onclick="logout()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden flex items-center">
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" 
+                            class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu -->
+        <div x-show="mobileMenuOpen" 
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="transform opacity-0 scale-95"
+             x-transition:enter-end="transform opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-75"
+             x-transition:leave-start="transform opacity-100 scale-100"
+             x-transition:leave-end="transform opacity-0 scale-95"
+             class="md:hidden bg-white border-t border-gray-200">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                {% if username %}
+                <div class="px-3 py-2 text-sm font-medium text-gray-900 border-b border-gray-200">
+                    Welcome, {{ username }}
+                </div>
+                {% if user_profile_url %}
+                <a href="{{ user_profile_url }}" class="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md">
+                    <i class="fas fa-user-circle mr-2"></i>Profile
+                </a>
+                {% endif %}
+                {% if user_role == 'admin' %}
+                <a href="/users" class="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md">
+                    <i class="fas fa-users mr-2"></i>All Users
+                </a>
+                {% endif %}
+                <button onclick="logout()" class="w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:text-red-900 hover:bg-red-50 rounded-md">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Main content -->
+    <main class="{% if show_nav %}pt-0{% else %}pt-0{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    {% if show_footer %}
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="flex items-center space-x-4 mb-4 md:mb-0">
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-brain text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">&copy; 2024 ChatMinds. All rights reserved.</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6">
+                    <a href="/about_us" class="text-sm text-blue-600 hover:text-blue-800 transition-colors">
+                        About Us
+                    </a>
+                    <div class="flex space-x-4">
+                        <a href="https://www.facebook.com/ChatMinds" target="_blank" 
+                           class="text-gray-400 hover:text-blue-600 transition-colors">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="https://www.twitter.com/ChatMinds" target="_blank" 
+                           class="text-gray-400 hover:text-blue-400 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="https://www.instagram.com/ChatMinds" target="_blank" 
+                           class="text-gray-400 hover:text-pink-600 transition-colors">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    {% endif %}
+
+    <!-- Global JavaScript -->
+    <script>
+        function logout() {
+            window.location.href = '/logout';
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white animate-fade-in ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`;
+            toast.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <i class="fas ${
+                        type === 'success' ? 'fa-check-circle' : 
+                        type === 'error' ? 'fa-exclamation-circle' : 
+                        type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'
+                    }"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        // Loading state management
+        function setLoading(element, loading = true) {
+            if (loading) {
+                element.disabled = true;
+                element.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+            } else {
+                element.disabled = false;
+            }
+        }
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

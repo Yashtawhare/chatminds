@@ -1,310 +1,416 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tenant data</title>
-    <!-- Include Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <style>
-        body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 0 0 100px;
-                background-color: #f0f0f0;
-            }
-        .card {
-            box-shadow: 0 4px 8px 0 rgba(10, 83, 25, 0.2);
-            transition: 0.3s;
-            border-radius: 5px;
-            margin-bottom: 2em;
-            background-color: rgb(176, 226, 183);
-        }
-        .card:hover {
-            box-shadow: 0 8px 16px 0 rgba(7, 63, 21, 0.2)
-        }
-        .card-body {
-            padding: 2em;
-        }
-        .card-title {
-            font-size: 1.5em;
-            font-weight: bold;
-            text-align: center;
-            color: rgb(19, 97, 29);
-        }
-        .card-text {
-            font-size: 1.2em;
-            text-align: center;
-            color: rgb(45, 109, 54);
-        }
-        .highlight {
-            color: #248596;
-        }
-        .btn-delete {
-            background-color: rgb(185, 81, 81);
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        tbody tr:hover {
-            background-color: #d3ecd0;
-        }
-        .modal-content {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        }
-        .modal-body {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        }
-        .modal-button {
-        background-color: #4CAF50; /* Green background */
-        border: none; /* No border */
-        color: white; /* White text */
-        padding: 15px 32px; /* Some padding */
-        text-align: center; /* Centered text */
-        text-decoration: none; /* No underline */
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer; /* Mouse pointer on hover */
-        transition-duration: 0.4s; /* Transition effects */
-        border-radius: 12px; /* Rounded corners */
-        }
+{% extends "base.html" %}
 
-        .modal-button:hover {
-            background-color: white; /* White background */
-            color: black; /* Black text */
-        }
-        .upload-button-container {
-            text-align: center;
-            margin-top: 50px;
-        }
-        .upload-btn {
-            background-color: #3cb140;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 5px;
-        }
-        .upload-btn:hover {
-            background-color: #45a049;
-        }
-    </style>
-    <script>
-        function logout() {
-            window.location.href = '/logout';
-        }
-    </script>
-</head>
-<body>
-    <div style="text-align: center; padding: 20px; background-color: #c2e2b9;">
-        <h1 style="font-size: 2.5em; color: #4CAF50; font-weight: bold; text-transform: uppercase;">ASK-AI</h1>
-        <h2>Tenant Panel</h2>
-    </div>
-    <nav style="background-color: #f8f8f8; padding: 10px; display: flex; justify-content: space-between;">
-        
-        <a href="{{ home_url }}">
-            <button style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 10px;">Home</button>
-        </a>
-        <p style="margin: 0; display: inline;">Welcome, <span style="color: #4CAF50;"><a href="{{ user_profile_url }}">{{ username }}</a></span></p>
-        <button style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="logout()">Logout</button>
-    </nav>
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title" style="text-transform: uppercase;">{{ tenant.tenant_name }}</h5>
-                        <p class="card-text"><span class="highlight">Tenant ID:</span> {{ tenant.tenant_id }}</p>
-                        <p class="card-text"><span class="highlight">Created at:</span> {{ tenant.created_at }}</p>
-                        <p class="card-text"><span class="highlight">Updated at:</span> {{ tenant.updated_at }}</p>
+{% block title %}{{ tenant.tenant_name }} - Tenant Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100" x-data="tenantDashboard()">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Navigation -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ home_url }}" class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Home
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2 text-sm text-gray-600">
+                        <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-white text-xs"></i>
+                        </div>
+                        <span>Welcome, <strong>{{ username }}</strong></span>
+                    </div>
+                    <button onclick="logout()" 
+                            class="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        Logout
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tenant Info Card -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-8 text-white mb-8">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-building text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold">{{ tenant.tenant_name }}</h1>
+                            <p class="text-blue-100 mb-2">Tenant Dashboard</p>
+                            <div class="flex items-center space-x-4 text-sm text-blue-100">
+                                <span><i class="fas fa-hashtag mr-1"></i>{{ tenant.tenant_id[:8] }}...</span>
+                                <span><i class="fas fa-calendar mr-1"></i>Created {{ tenant.created_at }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Interface Toggle -->
+                    <div class="hidden lg:block">
+                        <button @click="showChatInterface = !showChatInterface"
+                                class="bg-white/20 hover:bg-white/30 px-6 py-3 rounded-lg transition-colors">
+                            <i class="fas fa-comments mr-2"></i>
+                            <span x-text="showChatInterface ? 'Hide Chat' : 'Open Chat'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Row -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Total Documents</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="documents.length">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-alt text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">PDF Documents</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="pdfCount">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-pdf text-red-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Text Documents</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="textCount">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-text text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Storage Used</p>
+                            <p class="text-2xl font-bold text-gray-900">2.4 GB</p>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-hdd text-purple-600 text-xl"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- <div class="row justify-content-center">
-            <div class="col-12 col-md-8 text-center" style="background-color: #dcf1dd; padding: 5px;">
-                <h2>Upload Documents</h2>
-                <input type="file" id="fileUpload" multiple style="margin-top: 10px; margin-left: 10px;" onchange="showFileName()">
+    </div>
 
-                <button style="background-color: #008CBA; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-top: 10px; margin-left: 10px;" onclick="uploadFiles()">Upload Files</button>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Upload Section -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-cloud-upload-alt text-white"></i>
+                            </div>
+                            <h2 class="text-xl font-semibold text-gray-900">Document Management</h2>
+                        </div>
+                        
+                        <a href="/load_documents/{{ tenant.tenant_id }}" 
+                           class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all">
+                            <i class="fas fa-plus mr-2"></i>
+                            Upload Documents
+                        </a>
+                    </div>
+                    
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-file-upload text-gray-400 text-xl"></i>
+                        </div>
+                        <p class="text-gray-600">Upload documents to start training your AI assistant</p>
+                        <p class="text-sm text-gray-500 mt-2">Supported formats: PDF, TXT, DOCX</p>
+                    </div>
+                </div>
                 
-                <button id="cancelButton" style="display: none; background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-top: 10px; margin-left: 10px;" onclick="cancelUpload()">Cancel</button>
+                <!-- Documents Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-folder-open text-white"></i>
+                                </div>
+                                <h2 class="text-xl font-semibold text-gray-900">Your Documents</h2>
+                            </div>
+                            
+                            <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Click on a document to preview</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Document
+                                    </th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Type
+                                    </th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Created
+                                    </th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="doc in documents" :key="doc.document_id">
+                                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+                                        @click="viewDocument(doc)">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
+                                                     :class="getDocumentIcon(doc.document_type).bg">
+                                                    <i :class="getDocumentIcon(doc.document_type).icon + ' text-white'"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm font-medium text-gray-900" x-text="doc.document_name"></div>
+                                                    <div class="text-sm text-gray-500" x-text="doc.document_id.substring(0, 8) + '...'"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                                  :class="getTypeColor(doc.document_type)"
+                                                  x-text="getFileType(doc.document_type)"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(doc.created_at)"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div class="flex space-x-2">
+                                                <button @click.stop="viewDocument(doc)" 
+                                                        class="text-blue-600 hover:text-blue-900 transition-colors">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button @click.stop="deleteDocument(doc.document_id)" 
+                                                        class="text-red-600 hover:text-red-900 transition-colors">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                                
+                                <tr x-show="documents.length === 0">
+                                    <td colspan="4" class="px-6 py-12 text-center">
+                                        <div class="flex flex-col items-center space-y-3">
+                                            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                                                <i class="fas fa-file text-gray-400 text-xl"></i>
+                                            </div>
+                                            <div class="text-gray-500">No documents uploaded yet</div>
+                                            <div class="text-sm text-gray-400">Upload your first document to get started</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-        </div> -->
-        <div class="upload-button-container">
-            <a href="/load_documents/{{tenant.tenant_id}}">
-                <button style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 10px;">Upload Documents</button>
-            </a>
-        </div>
-        <div class="row justify-content-center"></div>
-        <div class="row justify-content-center"></div>
-        <div class="row">
-            <div class="col-12 text-center" style="margin-top: 20px;">
-                <h2>Documents</h2>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-12">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Document ID</th>
-                            <th scope="col">Document Name</th>
-                            <th scope="col">Document Type</th>
-                            <th scope="col">Document Path</th>
-                            <th scope="col">Created at</th>
-                            <th scope="col">Updated at</th>
-                            <th scope="col">Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody id="documentList"></tbody>
-                </table>
+            
+            <!-- Chat Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="sticky top-8">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                         :class="showChatInterface ? 'h-96' : 'h-auto'">
+                        <div class="px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-robot text-sm"></i>
+                                    </div>
+                                    <h3 class="font-semibold">AI Assistant</h3>
+                                </div>
+                                <button @click="showChatInterface = !showChatInterface"
+                                        class="text-white/80 hover:text-white">
+                                    <i :class="showChatInterface ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div x-show="showChatInterface" class="p-6">
+                            <div class="space-y-4 mb-4 h-48 overflow-y-auto" id="chatMessages">
+                                <!-- Chat messages would go here -->
+                                <div class="text-center text-gray-500 text-sm">
+                                    Ask questions about your documents
+                                </div>
+                            </div>
+                            
+                            <div class="flex space-x-2">
+                                <input type="text" 
+                                       placeholder="Ask a question..."
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                                <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <!-- Modal -->
-    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Document Text</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+
+    <!-- Document View Modal -->
+    <div x-show="showDocumentModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+         @click.self="showDocumentModal = false">
+        
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-file text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900" x-text="selectedDocument?.document_name"></h3>
+                        <p class="text-sm text-gray-500" x-text="selectedDocument?.document_type"></p>
+                    </div>
+                </div>
+                <button @click="showDocumentModal = false" 
+                        class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto max-h-96">
+                <div class="text-center">
+                    <button @click="openDocument(selectedDocument)" 
+                            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all">
+                        <i class="fas fa-external-link-alt mr-2"></i>
+                        Open Document
                     </button>
                 </div>
-                <div class="modal-body">
-                    
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                </div>
             </div>
         </div>
     </div>
-    <footer style="position: fixed; left: 0; bottom: 0; width: 100%; background-color: #d1f1cd; padding: 10px; display: flex; justify-content: center; align-items: center;">
-        <div style="margin-right: 20px;">
-            <p>&copy; 2024 AskAI. All rights reserved.</p>
-        </div>
-        <div>
-            <p><a href="/about_us" style="color: rgb(201, 80, 146);">Meet Us @</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
-        </div>
-        <div>
-            <p>
-                <a href="https://www.facebook.com/AskAI" target="_blank" style="color: green;"><i class="fab fa-facebook-f"></i></a>
-                <a href="https://www.twitter.com/AskAI" target="_blank" style="color: green;"><i class="fab fa-twitter"></i></a>
-                <a href="https://www.instagram.com/AskAI" target="_blank" style="color: green;"><i class="fab fa-instagram"></i></a>
-            </p>
-        </div>
-    </footer>
-    <script>
-        var BASE_PATH = "{{ base_path }}";
-        
-        function cancelUpload() {
-            // Your logic to cancel the upload goes here
-            var fileInput = document.getElementById('fileUpload');
-            fileInput.value = '';
-            showFileName();
-        }
+</div>
 
-        // Function to toggle cancel button visibility
-        function showFileName() {
-            var fileInput = document.getElementById('fileUpload');
-            var uploadButton = document.getElementById('uploadButton');
-            var cancelButton = document.getElementById('cancelButton');
-            if (fileInput.files.length > 0) {
-                cancelButton.style.display = 'inline-block'; // Show the cancel button
-                uploadButton.style.display = 'none'; // Hide the upload button
-            } else {
-                cancelButton.style.display = 'none'; // Hide the cancel button
-                uploadButton.style.display = 'inline-block'; // Show the upload button
-            }
-        }
+<script>
+    function tenantDashboard() {
+        return {
+            documents: [],
+            showChatInterface: false,
+            showDocumentModal: false,
+            selectedDocument: null,
+            pdfCount: 0,
+            textCount: 0,
 
-        function uploadFiles() {
-            var fileInput = document.getElementById('fileUpload');
-            var files = fileInput.files;
-            var formData = new FormData();
-        
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                formData.append('files[]', file, file.name);
-            }
-        
-            fetch('/add_document/{{tenant.tenant_id}}', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+            init() {
+                this.fetchDocuments();
+            },
+
+            async fetchDocuments() {
+                try {
+                    const response = await fetch('/documents/{{ tenant.tenant_id }}');
+                    this.documents = await response.json();
+                    this.updateStats();
+                } catch (error) {
+                    showToast('Error loading documents', 'error');
                 }
-                return response.json();
-            })
-            .then(data => {
-                alert('File upload successful:', data)
-                console.log('File upload successful:', data);
-                location.reload();
-            })
-            .catch(error => {
-                console.error('There has been a problem with your fetch operation:', error);
-            });
-            fetchDocuments();
-        }
+            },
 
-        function fetchDocuments() {
-            fetch('/documents/{{tenant.tenant_id}}')
-            .then(response => response.json())
-            .then(data => {
-                var documentList = document.getElementById('documentList');
-                documentList.innerHTML = '';
-                data.forEach(function(doc) {
-                    var row = document.createElement('tr');
-                    row.innerHTML = '<td>' + doc.document_id + '</td><td>' + doc.document_name + '</td><td>' + doc.document_type + '</td><td>' + doc.document_path + '</td><td>' + doc.created_at + '</td><td>' + doc.updated_at + '</td><td><button class="delete-button btn-delete" data-document-id="' + doc.document_id + '">Delete</button></td>';
-                    row.querySelector('.delete-button').addEventListener('click', function(event) {
-                        event.stopPropagation(); // Prevent the row click event from triggering
-                        var documentId = this.getAttribute('data-document-id');
+            updateStats() {
+                this.pdfCount = this.documents.filter(doc => doc.document_type.includes('pdf')).length;
+                this.textCount = this.documents.filter(doc => doc.document_type.includes('text')).length;
+            },
 
-                        if (confirm("Are you sure you want to delete this document? This action cannot be reverted.")) {
-                            fetch('/delete_document/' + documentId, {
-                                method: 'DELETE'
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('Network response was not ok');
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                fetchDocuments();
-                            })
-                            .catch(error => {
-                                console.error('There has been a problem with your fetch operation:', error);
-                            });
-                        }
+            viewDocument(doc) {
+                this.selectedDocument = doc;
+                this.showDocumentModal = true;
+            },
+
+            openDocument(doc) {
+                window.open(`/view_document/${doc.document_id}/tenant/{{ tenant.tenant_id }}`, '_blank');
+            },
+
+            async deleteDocument(documentId) {
+                if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/delete_document/${documentId}`, {
+                        method: 'DELETE'
                     });
-                    row.addEventListener('click', function() {                    
-                        // Add the button to the modal body
-                        $('.modal-body').html('<button class="modal-button" onclick="window.open(\'/view_document/' + doc.document_id + '/tenant/{{ tenant.tenant_id }}\', \'_blank\')">Open Document</button>');                    
-                        // Show the modal
-                        $('#exampleModal').modal('show');
-                    });
-                    documentList.appendChild(row);
+
+                    if (response.ok) {
+                        showToast('Document deleted successfully!', 'success');
+                        await this.fetchDocuments();
+                    } else {
+                        throw new Error('Failed to delete document');
+                    }
+                } catch (error) {
+                    showToast('Error deleting document', 'error');
+                }
+            },
+
+            getDocumentIcon(type) {
+                if (type.includes('pdf')) {
+                    return { icon: 'fas fa-file-pdf', bg: 'bg-red-500' };
+                } else if (type.includes('text')) {
+                    return { icon: 'fas fa-file-text', bg: 'bg-green-500' };
+                } else if (type.includes('word')) {
+                    return { icon: 'fas fa-file-word', bg: 'bg-blue-500' };
+                }
+                return { icon: 'fas fa-file', bg: 'bg-gray-500' };
+            },
+
+            getTypeColor(type) {
+                if (type.includes('pdf')) {
+                    return 'bg-red-100 text-red-800';
+                } else if (type.includes('text')) {
+                    return 'bg-green-100 text-green-800';
+                } else if (type.includes('word')) {
+                    return 'bg-blue-100 text-blue-800';
+                }
+                return 'bg-gray-100 text-gray-800';
+            },
+
+            getFileType(type) {
+                if (type.includes('pdf')) return 'PDF';
+                if (type.includes('text')) return 'Text';
+                if (type.includes('word')) return 'Word';
+                return 'Unknown';
+            },
+
+            formatDate(dateString) {
+                return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
                 });
-            });
+            }
         }
-        fetchDocuments();
-    </script>
-    <!-- Include jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <!-- Include Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+    }
+</script>
+{% endblock %}
