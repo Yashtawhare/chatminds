@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  chatminds-web:
+    build:
+      context: ./chatminds
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=true
+    volumes:
+      - ./chatminds/data:/app/data
+      - ./chatminds:/app  # Mount source code for development
+    depends_on:
+      - chatminds-llm
+    networks:
+      - chatminds-network
+    restart: unless-stopped
+
+  chatminds-llm:
+    build:
+      context: ./chatminds-llm
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./chatminds-llm/data:/app/data
+      - ./chatminds-llm:/app  # Mount source code for development
+    networks:
+      - chatminds-network
+    restart: unless-stopped
+
+networks:
+  chatminds-network:
+    driver: bridge

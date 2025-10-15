@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  chatminds-web:
+    build:
+      context: ./chatminds
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+    volumes:
+      - ./chatminds/data:/app/data
+      - ./chatminds/askai.db:/app/askai.db
+    depends_on:
+      - chatminds-llm
+    networks:
+      - chatminds-network
+    restart: unless-stopped
+
+  chatminds-llm:
+    build:
+      context: ./chatminds-llm
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./chatminds-llm/data:/app/data
+    networks:
+      - chatminds-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - chatminds-web
+      - chatminds-llm
+    networks:
+      - chatminds-network
+    restart: unless-stopped
+
+networks:
+  chatminds-network:
+    driver: bridge
+
+volumes:
+  chatminds_data:
+  llm_data:

@@ -454,4 +454,10 @@ def delete_user(user_id):
 
     
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Initialize database tables
+    create_tables()
+    
+    # Run the app
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)
