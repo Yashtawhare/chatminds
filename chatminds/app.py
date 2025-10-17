@@ -1,95 +1,203 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_file
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_file, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
 import uuid
 import os
+import logging
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'osho'
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 data_dir = 'data'
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 
-def get_db_connection():
-    conn = sqlite3.connect('askai.db', check_same_thread=False)
-    
-    cursor = conn.cursor()
-    return conn, cursor
+# Custom exception classes
+class DatabaseError(Exception):
+    """Custom exception for database-related errors"""
+    pass
 
+class ValidationError(Exception):
+    """Custom exception for validation errors"""
+    pass
+
+def get_db_connection():
+    """Get database connection with error handling"""
+    try:
+        conn = sqlite3.connect('askai.db', check_same_thread=False)
+        cursor = conn.cursor()
+        return conn, cursor
+    except sqlite3.Error as e:
+        logger.error(f"Database connection error: {str(e)}")
+        raise DatabaseError(f"Failed to connect to database: {str(e)}")
+
+def validate_input(data, required_fields):
+    """Validate input data"""
+    missing_fields = []
+    for field in required_fields:
+        if field not in data or not data[field] or not data[field].strip():
+            missing_fields.append(field)
+    
+    if missing_fields:
+        raise ValidationError(f"Missing required fields: {', '.join(missing_fields)}")
+
+def handle_database_operation(operation_func):
+    """Decorator to handle database operations with proper error handling"""
+    @wraps(operation_func)
+    def wrapper(*args, **kwargs):
+        try:
+            return operation_func(*args, **kwargs)
+        except sqlite3.Error as e:
+            logger.error(f"Database operation error: {str(e)}")
+            raise DatabaseError(f"Database operation failed: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error in database operation: {str(e)}")
+            raise
+    return wrapper
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    return render_template('error.html', 
+                          error_code='404',
+                          error_title='Page Not Found',
+                          error_message='The page you are looking for does not exist.',
+                          error_id=str(uuid.uuid4())[:8]), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    error_id = str(uuid.uuid4())[:8]
+    logger.error(f"Internal server error (ID: {error_id}): {str(error)}")
+    return render_template('error.html', 
+                          error_code='500',
+                          error_title='Internal Server Error',
+                          error_message='Something went wrong on our end. Our team has been notified.',
+                          error_id=error_id,
+                          auto_refresh=True), 500
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Handle 403 errors"""
+    return render_template('error.html', 
+                          error_code='403',
+                          error_title='Access Forbidden',
+                          error_message='You do not have permission to access this resource.',
+                          error_id=str(uuid.uuid4())[:8]), 403
+
+@app.errorhandler(401)
+def unauthorized_error(error):
+    """Handle 401 errors"""
+    return render_template('error.html', 
+                          error_code='401',
+                          error_title='Unauthorized Access',
+                          error_message='You need to be logged in to access this page.',
+                          error_id=str(uuid.uuid4())[:8]), 401
+
+@app.errorhandler(DatabaseError)
+def handle_database_error(error):
+    """Handle custom database errors"""
+    error_id = str(uuid.uuid4())[:8]
+    logger.error(f"Database error (ID: {error_id}): {str(error)}")
+    flash('A database error occurred. Please try again later.', 'error')
+    return render_template('error.html', 
+                          error_code='DB_ERROR',
+                          error_title='Database Error',
+                          error_message='We are experiencing database issues. Please try again later.',
+                          error_id=error_id), 500
+
+@app.errorhandler(ValidationError)
+def handle_validation_error(error):
+    """Handle validation errors"""
+    flash(str(error), 'error')
+    return redirect(request.referrer or url_for('login'))
+
+@handle_database_operation
+
+@handle_database_operation
 def create_tables():
+    """Create database tables with error handling"""
     conn, cursor = get_db_connection()
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS tenants (
-                        tenant_id TEXT PRIMARY KEY,
-                        tenant_name TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )''')
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                        user_id TEXT PRIMARY KEY,
-                        user_name TEXT NOT NULL,
-                        email TEXT NOT NULL,
-                        password TEXT NOT NULL,
-                        role TEXT DEFAULT 'user',
-                        tenant_id TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-                    )''')
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS documents (
-                        document_id TEXT PRIMARY KEY,
-                        document_name TEXT,
-                        document_type TEXT,
-                        document_path TEXT,
-                        tenant_id TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-                    )''')
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS questions (
-                        question_id TEXT PRIMARY KEY,
-                        question_content TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        tenant_id TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users(user_id),
-                        FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-                    )''')
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS answers (
-                        answer_id TEXT PRIMARY KEY,
-                        answer_content TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        question_id TEXT NOT NULL,
-                        tenant_id TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users(user_id),
-                        FOREIGN KEY (question_id) REFERENCES questions(question_id),
-                        FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-                    )''')
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS history (
-                        history_id TEXT PRIMARY KEY,
-                        action TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        affected_id TEXT NOT NULL,
-                        affected_type TEXT NOT NULL,
-                        tenant_id TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users(user_id),
-                        FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-                    )''')
-    
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS tenants (
+                            tenant_id TEXT PRIMARY KEY,
+                            tenant_name TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                            user_id TEXT PRIMARY KEY,
+                            user_name TEXT NOT NULL,
+                            email TEXT NOT NULL,
+                            password TEXT NOT NULL,
+                            role TEXT DEFAULT 'user',
+                            tenant_id TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+                        )''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS documents (
+                            document_id TEXT PRIMARY KEY,
+                            document_name TEXT,
+                            document_type TEXT,
+                            document_path TEXT,
+                            tenant_id TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+                        )''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS questions (
+                            question_id TEXT PRIMARY KEY,
+                            question_content TEXT NOT NULL,
+                            user_id TEXT NOT NULL,
+                            tenant_id TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (user_id) REFERENCES users(user_id),
+                            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+                        )''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS answers (
+                            answer_id TEXT PRIMARY KEY,
+                            answer_content TEXT NOT NULL,
+                            user_id TEXT NOT NULL,
+                            question_id TEXT NOT NULL,
+                            tenant_id TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (user_id) REFERENCES users(user_id),
+                            FOREIGN KEY (question_id) REFERENCES questions(question_id),
+                            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+                        )''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS history (
+                            history_id TEXT PRIMARY KEY,
+                            action TEXT NOT NULL,
+                            user_id TEXT NOT NULL,
+                            affected_id TEXT NOT NULL,
+                            affected_type TEXT NOT NULL,
+                            tenant_id TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (user_id) REFERENCES users(user_id),
+                            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+                        )''')
+        
+        conn.commit()
+        logger.info("Database tables created successfully")
+    finally:
+        conn.close()
 
 @app.route('/')
 def index():
@@ -158,65 +266,203 @@ def load_documents(tenant_id):
 
 @app.route('/register', methods=['POST'])
 def register():
-    username = request.form['username']
-    email = request.form['email']
-    password = generate_password_hash(request.form['password'])
-    tenant_id = request.form['tenant_id']
-    user_id = str(uuid.uuid4())
-    conn, cursor = get_db_connection()
-    user = cursor.execute('''SELECT * FROM users WHERE tenant_id = ?''', (tenant_id,)).fetchone()
-    if user is not None:
-        return render_template('register.html', message='Tenant already has a user')
-    result = cursor.execute('''INSERT INTO users (user_id, user_name, email, password, tenant_id) VALUES (?, ?, ?, ?, ?)''', (user_id, username, email, password, tenant_id))
-    conn.commit()
-    conn.close()
-    if result:
-        session['username'] = username
-        session['user_id'] = user_id
-        session['tenant_id'] = tenant_id
-        session['role'] = 'user'
-    if is_logged_in():
-        if session['role'] == 'user':
+    """Register route with proper error handling and validation"""
+    try:
+        # Validate input
+        form_data = {
+            'username': request.form.get('username', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'password': request.form.get('password', ''),
+            'tenant_id': request.form.get('tenant_id', '').strip()
+        }
+        
+        validate_input(form_data, ['username', 'email', 'password', 'tenant_id'])
+        
+        username = form_data['username']
+        email = form_data['email']
+        password = form_data['password']
+        tenant_id = form_data['tenant_id']
+        
+        # Additional validation
+        if len(username) < 3:
+            flash('Username must be at least 3 characters long.', 'error')
+            return redirect(url_for('register_form'))
+        
+        if len(password) < 4:
+            flash('Password must be at least 4 characters long.', 'error')
+            return redirect(url_for('register_form'))
+        
+        if '@' not in email or '.' not in email:
+            flash('Please enter a valid email address.', 'error')
+            return redirect(url_for('register_form'))
+        
+        # Hash password
+        hashed_password = generate_password_hash(password)
+        user_id = str(uuid.uuid4())
+        
+        # Database operations
+        conn, cursor = get_db_connection()
+        try:
+            # Check if tenant already has a user
+            existing_user = cursor.execute('''SELECT * FROM users WHERE tenant_id = ?''', (tenant_id,)).fetchone()
+            if existing_user is not None:
+                flash('This tenant already has a user registered. Please contact administrator.', 'error')
+                return redirect(url_for('register_form'))
+            
+            # Check if username already exists
+            username_check = cursor.execute('''SELECT * FROM users WHERE user_name = ?''', (username,)).fetchone()
+            if username_check is not None:
+                flash('Username already exists. Please choose a different username.', 'error')
+                return redirect(url_for('register_form'))
+            
+            # Check if email already exists
+            email_check = cursor.execute('''SELECT * FROM users WHERE email = ?''', (email,)).fetchone()
+            if email_check is not None:
+                flash('Email already registered. Please use a different email or try logging in.', 'error')
+                return redirect(url_for('register_form'))
+            
+            # Verify tenant exists
+            tenant_check = cursor.execute('''SELECT * FROM tenants WHERE tenant_id = ?''', (tenant_id,)).fetchone()
+            if tenant_check is None:
+                flash('Invalid tenant ID. Please contact administrator.', 'error')
+                return redirect(url_for('register_form'))
+            
+            # Create user
+            cursor.execute('''INSERT INTO users (user_id, user_name, email, password, tenant_id) VALUES (?, ?, ?, ?, ?)''', 
+                          (user_id, username, email, hashed_password, tenant_id))
+            conn.commit()
+            
+            # Set session
+            session['username'] = username
+            session['user_id'] = user_id
+            session['tenant_id'] = tenant_id
+            session['role'] = 'user'
+            
+            logger.info(f"New user registered: {username} for tenant {tenant_id}")
+            flash('Registration successful! Welcome to ChatMinds.', 'success')
             return redirect(url_for('tenant_data', tenant_id=tenant_id))
-    return jsonify({'message': 'User registered successfully'}), 201
+            
+        finally:
+            conn.close()
+            
+    except ValidationError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('register_form'))
+    except DatabaseError as e:
+        logger.error(f"Database error during registration: {str(e)}")
+        flash('Registration service is temporarily unavailable. Please try again later.', 'error')
+        return redirect(url_for('register_form'))
+    except Exception as e:
+        logger.error(f"Unexpected error during registration: {str(e)}")
+        flash('An unexpected error occurred. Please try again.', 'error')
+        return redirect(url_for('register_form'))
 
 # create admin user
 @app.route('/seed')
 def seed():
-    conn, cursor = get_db_connection()
-    admin = cursor.execute('''SELECT * FROM users WHERE user_name = ?''', ('admin',))
-    if admin.fetchone() is not None:
-        return redirect(url_for('login'))
-    cursor.execute('''INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)''', ('1', 'admin'))
-    result = cursor.execute('''INSERT INTO users (user_id, user_name, email, password, tenant_id, role) VALUES (?, ?, ?, ?, ?, ?)''', ('1', 'admin', 'admin@gmail.com', generate_password_hash('admin'), '1', 'admin'))
-    conn.commit()
-    conn.close()
-    if result:
-        return redirect(url_for('login'))
-    return jsonify({'message': 'Admin user created successfully'}), 201
+    """Create admin user with error handling"""
+    try:
+        conn, cursor = get_db_connection()
+        try:
+            admin = cursor.execute('''SELECT * FROM users WHERE user_name = ?''', ('admin',))
+            if admin.fetchone() is not None:
+                flash('Admin user already exists.', 'info')
+                return redirect(url_for('login_form'))
+            
+            cursor.execute('''INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)''', ('1', 'admin'))
+            cursor.execute('''INSERT INTO users (user_id, user_name, email, password, tenant_id, role) VALUES (?, ?, ?, ?, ?, ?)''', 
+                          ('1', 'admin', 'admin@gmail.com', generate_password_hash('admin'), '1', 'admin'))
+            conn.commit()
+            
+            logger.info("Admin user created successfully")
+            flash('Admin user created successfully! You can now login with username: admin, password: admin', 'success')
+            return redirect(url_for('login_form'))
+            
+        finally:
+            conn.close()
+            
+    except DatabaseError as e:
+        logger.error(f"Database error during admin creation: {str(e)}")
+        flash('Failed to create admin user. Please try again later.', 'error')
+        return redirect(url_for('login_form'))
+    except Exception as e:
+        logger.error(f"Unexpected error during admin creation: {str(e)}")
+        flash('An unexpected error occurred while creating admin user.', 'error')
+        return redirect(url_for('login_form'))
 
 
 @app.route('/login', methods=['POST'])
 def login():
+    """Login route with proper error handling and validation"""
     if is_logged_in():
         return redirect(url_for('index'))
-    username = request.form['username']
-    password = request.form['password']
-    conn, cursor = get_db_connection()
-    user = cursor.execute('''SELECT * FROM users WHERE user_name = ?''', (username,)).fetchone()
-    conn.close()
-    if user is not None and check_password_hash(user[3], password):
-        session['username'] = username
-        session['user_id'] = user[0]
-        session['tenant_id'] = user[5]
-        if user[4] == 'admin':
-            session['role'] = 'admin'
-            return redirect(url_for('index'))
-        else:
-            session['role'] = 'user'
-            return redirect(url_for('tenant_data', tenant_id=user[5]))
-    else:
-        return redirect(url_for('login'))
+    
+    try:
+        # Validate input
+        form_data = {
+            'username': request.form.get('username', '').strip(),
+            'password': request.form.get('password', '')
+        }
+        
+        validate_input(form_data, ['username', 'password'])
+        
+        username = form_data['username']
+        password = form_data['password']
+        
+        # Additional validation
+        if len(username) < 3:
+            flash('Username must be at least 3 characters long.', 'error')
+            return redirect(url_for('login_form'))
+        
+        if len(password) < 4:
+            flash('Password must be at least 4 characters long.', 'error')
+            return redirect(url_for('login_form'))
+        
+        # Database operations
+        conn, cursor = get_db_connection()
+        try:
+            user = cursor.execute('''SELECT * FROM users WHERE user_name = ?''', (username,)).fetchone()
+            
+            if user is None:
+                flash('Invalid username or password. Please check your credentials and try again.', 'error')
+                logger.warning(f"Failed login attempt for non-existent user: {username}")
+                return redirect(url_for('login_form'))
+            
+            if not check_password_hash(user[3], password):
+                flash('Invalid username or password. Please check your credentials and try again.', 'error')
+                logger.warning(f"Failed login attempt for user: {username} (incorrect password)")
+                return redirect(url_for('login_form'))
+            
+            # Successful login
+            session['username'] = username
+            session['user_id'] = user[0]
+            session['tenant_id'] = user[5]
+            
+            if user[4] == 'admin':
+                session['role'] = 'admin'
+                logger.info(f"Admin user {username} logged in successfully")
+                flash('Welcome back, Admin!', 'success')
+                return redirect(url_for('index'))
+            else:
+                session['role'] = 'user'
+                logger.info(f"User {username} logged in successfully")
+                flash(f'Welcome back, {username}!', 'success')
+                return redirect(url_for('tenant_data', tenant_id=user[5]))
+                
+        finally:
+            conn.close()
+            
+    except ValidationError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('login_form'))
+    except DatabaseError as e:
+        logger.error(f"Database error during login: {str(e)}")
+        flash('Login service is temporarily unavailable. Please try again later.', 'error')
+        return redirect(url_for('login_form'))
+    except Exception as e:
+        logger.error(f"Unexpected error during login: {str(e)}")
+        flash('An unexpected error occurred. Please try again.', 'error')
+        return redirect(url_for('login_form'))
 
 @app.route('/logout')
 def logout():
@@ -230,27 +476,70 @@ def is_logged_in():
 
 @app.route('/add_tenant', methods=['POST'])
 def add_tenant():
+    """Add tenant with error handling and validation"""
     if not is_logged_in():
-        return redirect(url_for('login'))
-    tenant_name = request.form['tenant_name']
-    tenant_id = str(uuid.uuid4())
-    conn, cursor = get_db_connection()
-    cursor.execute('''INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)''', (tenant_id, tenant_name))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Tenant added successfully'}), 201
+        return redirect(url_for('login_form'))
+    
+    try:
+        # Validate input
+        tenant_name = request.form.get('tenant_name', '').strip()
+        if not tenant_name:
+            return jsonify({'error': 'Tenant name is required'}), 400
+        
+        if len(tenant_name) < 2:
+            return jsonify({'error': 'Tenant name must be at least 2 characters long'}), 400
+        
+        tenant_id = str(uuid.uuid4())
+        
+        # Database operations
+        conn, cursor = get_db_connection()
+        try:
+            # Check if tenant name already exists
+            existing_tenant = cursor.execute('''SELECT * FROM tenants WHERE tenant_name = ?''', (tenant_name,)).fetchone()
+            if existing_tenant is not None:
+                return jsonify({'error': 'Tenant name already exists'}), 400
+            
+            cursor.execute('''INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)''', (tenant_id, tenant_name))
+            conn.commit()
+            
+            logger.info(f"New tenant created: {tenant_name} (ID: {tenant_id})")
+            return jsonify({'message': 'Tenant added successfully', 'tenant_id': tenant_id}), 201
+            
+        finally:
+            conn.close()
+            
+    except DatabaseError as e:
+        logger.error(f"Database error while adding tenant: {str(e)}")
+        return jsonify({'error': 'Failed to add tenant due to database error'}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error while adding tenant: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 
 @app.route('/get_all_tenants', methods=['GET'])
 def get_all_tenants():
+    """Get all tenants with error handling"""
     if not is_logged_in():
-        return redirect(url_for('login'))
-    conn, cursor = get_db_connection()
-    cursor.execute('''SELECT tenant_id, tenant_name, created_at, updated_at FROM tenants WHERE tenant_name != 'admin';''')
-    tenants = cursor.fetchall()
-    conn.close()
-    tenant_list = [{'tenant_id': t[0], 'tenant_name': t[1], 'created_at': t[2], 'updated_at': t[3]} for t in tenants]
-    return jsonify(tenant_list), 200
+        return redirect(url_for('login_form'))
+    
+    try:
+        conn, cursor = get_db_connection()
+        try:
+            cursor.execute('''SELECT tenant_id, tenant_name, created_at, updated_at FROM tenants WHERE tenant_name != 'admin';''')
+            tenants = cursor.fetchall()
+            
+            tenant_list = [{'tenant_id': t[0], 'tenant_name': t[1], 'created_at': t[2], 'updated_at': t[3]} for t in tenants]
+            return jsonify(tenant_list), 200
+            
+        finally:
+            conn.close()
+            
+    except DatabaseError as e:
+        logger.error(f"Database error while fetching tenants: {str(e)}")
+        return jsonify({'error': 'Failed to fetch tenants due to database error'}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error while fetching tenants: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 
 @app.route('/edit_tenant/<tenant_id>', methods=['PUT'])
@@ -278,30 +567,64 @@ def delete_tenant(tenant_id):
 
 @app.route('/tenant_data/<tenant_id>', methods=['GET'])
 def tenant_data(tenant_id):
+    """Get tenant data with error handling"""
     if not is_logged_in():
-        return redirect(url_for('login'))
-    user_role = session.get('role')
-    if user_role == 'admin':
-        home_url = '/'
-    else:
-        home_url = '/tenant_data/' + tenant_id
-    conn, cursor = get_db_connection()
-    cursor.execute('''SELECT * FROM tenants WHERE tenant_id = ?''', (tenant_id,))
-    tenant = cursor.fetchone()
-    conn.close()
-    if tenant is None:
-        return render_template('tenant_data.html', message='Tenant not found', username=session['username'], home_url=home_url, tenant=tenant)
-    else:
-        tenant_dict = {'tenant_id': tenant[0], 'tenant_name': tenant[1], 'created_at': tenant[2], 'updated_at': tenant[3]}
-        return render_template('tenant_data.html', 
-                             tenant=tenant_dict, 
-                             username=session['username'], 
-                             user_profile_url='/get_user/'+session['user_id'],  
-                             home_url=home_url, 
-                             base_path=os.path.dirname(os.path.abspath(__file__)),
-                             user_role=session.get('role'),
-                             show_nav=True,
-                             show_footer=True)
+        return redirect(url_for('login_form'))
+    
+    try:
+        # Validate tenant_id
+        if not tenant_id or not tenant_id.strip():
+            flash('Invalid tenant ID provided.', 'error')
+            return redirect(url_for('index'))
+        
+        user_role = session.get('role')
+        if user_role == 'admin':
+            home_url = '/'
+        else:
+            home_url = '/tenant_data/' + tenant_id
+        
+        # Database operations
+        conn, cursor = get_db_connection()
+        try:
+            cursor.execute('''SELECT * FROM tenants WHERE tenant_id = ?''', (tenant_id,))
+            tenant = cursor.fetchone()
+            
+            if tenant is None:
+                flash('Tenant not found. Please check the tenant ID.', 'error')
+                logger.warning(f"Attempted access to non-existent tenant: {tenant_id}")
+                return render_template('error.html', 
+                                      error_code='404',
+                                      error_title='Tenant Not Found',
+                                      error_message='The requested tenant does not exist.')
+            
+            tenant_dict = {
+                'tenant_id': tenant[0], 
+                'tenant_name': tenant[1], 
+                'created_at': tenant[2], 
+                'updated_at': tenant[3]
+            }
+            
+            return render_template('tenant_data.html', 
+                                 tenant=tenant_dict, 
+                                 username=session['username'], 
+                                 user_profile_url='/get_user/'+session['user_id'],  
+                                 home_url=home_url, 
+                                 base_path=os.path.dirname(os.path.abspath(__file__)),
+                                 user_role=session.get('role'),
+                                 show_nav=True,
+                                 show_footer=True)
+            
+        finally:
+            conn.close()
+            
+    except DatabaseError as e:
+        logger.error(f"Database error while fetching tenant data: {str(e)}")
+        flash('Unable to load tenant data. Please try again later.', 'error')
+        return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f"Unexpected error while fetching tenant data: {str(e)}")
+        flash('An unexpected error occurred.', 'error')
+        return redirect(url_for('index'))
     
 
 @app.route('/documents/<tenant_id>', methods=['GET'])
