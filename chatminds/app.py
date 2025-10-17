@@ -688,6 +688,58 @@ def get_documents(tenant_id):
     document_list = [{'document_id': d[0], 'document_name': d[1], 'document_type': d[2], 'document_path': '\\'+d[3], 'created_at': d[5], 'updated_at': d[6]} for d in documents]
     return jsonify(document_list), 200
 
+@app.route('/storage/<tenant_id>', methods=['GET'])
+def get_storage_usage(tenant_id):
+    """Calculate and return storage usage for a tenant"""
+    if not is_logged_in():
+        return redirect(url_for('login_form'))
+    
+    try:
+        # Calculate tenant storage usage
+        tenant_dir = os.path.join(data_dir, tenant_id)
+        total_size = 0
+        file_count = 0
+        
+        if os.path.exists(tenant_dir):
+            for root, dirs, files in os.walk(tenant_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    try:
+                        if os.path.exists(file_path):
+                            total_size += os.path.getsize(file_path)
+                            file_count += 1
+                    except (OSError, IOError):
+                        # Skip files that can't be accessed
+                        continue
+        
+        # Format size in human readable format
+        def format_bytes(bytes):
+            if bytes == 0:
+                return "0 B"
+            
+            import math
+            size_names = ["B", "KB", "MB", "GB", "TB"]
+            i = int(math.floor(math.log(bytes, 1024)))
+            p = math.pow(1024, i)
+            s = round(bytes / p, 2)
+            return f"{s} {size_names[i]}"
+        
+        formatted_size = format_bytes(total_size)
+        
+        return jsonify({
+            'total_bytes': total_size,
+            'formatted_size': formatted_size,
+            'file_count': file_count
+        }), 200
+    
+    except Exception as e:
+        logging.error(f"Error calculating storage usage for tenant {tenant_id}: {str(e)}")
+        return jsonify({
+            'total_bytes': 0,
+            'formatted_size': '0 B',
+            'file_count': 0
+        }), 200
+
 
 @app.route('/add_document/<tenant_id>', methods=['POST'])
 def add_document(tenant_id):

@@ -166,7 +166,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-600 text-sm">Storage Used</p>
-                            <p class="text-2xl font-bold text-gray-900">2.4 GB</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="storageUsed">Loading...</p>
                         </div>
                         <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                             <i class="fas fa-hdd text-purple-600 text-xl"></i>
@@ -413,11 +413,25 @@
             documents: [],
             pdfCount: 0,
             textCount: 0,
+            storageUsed: 'Loading...',
             showDeleteModal: false,
             documentToDelete: null,
 
             init() {
                 this.fetchDocuments();
+                this.fetchStorageUsage();
+                
+                // Check if we're returning from an upload/document change and refresh
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('refresh') === 'true') {
+                    // Remove the refresh parameter from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Force a refresh after a short delay
+                    setTimeout(() => {
+                        this.fetchDocuments();
+                        this.fetchStorageUsage();
+                    }, 500);
+                }
             },
 
             async fetchDocuments() {
@@ -427,6 +441,17 @@
                     this.updateStats();
                 } catch (error) {
                     showToast('Error loading documents', 'error');
+                }
+            },
+
+            async fetchStorageUsage() {
+                try {
+                    const response = await fetch('/storage/{{ tenant.tenant_id }}');
+                    const storageData = await response.json();
+                    this.storageUsed = storageData.formatted_size;
+                } catch (error) {
+                    console.error('Error loading storage usage:', error);
+                    this.storageUsed = 'Error';
                 }
             },
 
@@ -459,6 +484,7 @@
                     if (response.ok) {
                         showToast('Document deleted successfully!', 'success');
                         await this.fetchDocuments();
+                        await this.fetchStorageUsage(); // Refresh storage usage after deletion
                         this.showDeleteModal = false;
                         this.documentToDelete = null;
                     } else {
