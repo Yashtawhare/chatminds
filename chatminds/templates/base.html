@@ -205,37 +205,71 @@
 
     <!-- Footer -->
     {% if show_footer %}
-    <footer class="bg-white border-t border-gray-200 mt-auto">
+    <footer class="bg-gradient-to-r from-gray-800 to-gray-900 text-white mt-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex flex-col md:flex-row items-center justify-between">
-                <div class="flex items-center space-x-4 mb-4 md:mb-0">
-                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-brain text-white text-sm"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">&copy; 2024 ChatMinds. All rights reserved.</p>
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+                <!-- About Section -->
+                <div>
+                    <h3 class="text-lg font-bold mb-3">
+                        <i class="fas fa-brain mr-2"></i>ChatMinds AI
+                    </h3>
+                    <p class="text-gray-400 text-sm">
+                        Transform your documents into intelligent conversations with our AI-powered assistant.
+                    </p>
                 </div>
                 
-                <div class="flex items-center space-x-6">
-                    <a href="/about_us" class="text-sm text-blue-600 hover:text-blue-800 transition-colors">
-                        About Us
-                    </a>
-                    <div class="flex space-x-4">
-                        <a href="https://www.facebook.com/ChatMinds" target="_blank" 
-                           class="text-gray-400 hover:text-blue-600 transition-colors">
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        {% if username %}
+                        <li>
+                            <a href="{% if user_role == 'admin' %}/{% else %}{{ home_url }}{% endif %}" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="fas fa-home mr-2"></i>Home
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li>
+                            <a href="/about_us" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="fas fa-users mr-2"></i>About Us
+                            </a>
+                        </li>
+                        {% if user_role == 'admin' %}
+                        <li>
+                            <a href="/users" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="fas fa-user-shield mr-2"></i>All Users
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <!-- Contact & Social -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">Connect With Us</h3>
+                    <div class="flex space-x-3">
+                        <a href="https://www.facebook.com/ChatMindsAI" target="_blank" 
+                           class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors">
                             <i class="fab fa-facebook-f"></i>
                         </a>
-                        <a href="https://www.twitter.com/ChatMinds" target="_blank" 
-                           class="text-gray-400 hover:text-blue-400 transition-colors">
+                        <a href="https://www.twitter.com/ChatMindsAI" target="_blank" 
+                           class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-sky-600 transition-colors">
                             <i class="fab fa-twitter"></i>
                         </a>
-                        <a href="https://www.instagram.com/ChatMinds" target="_blank" 
-                           class="text-gray-400 hover:text-pink-600 transition-colors">
+                        <a href="https://www.instagram.com/ChatMindsAI" target="_blank" 
+                           class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-pink-600 transition-colors">
                             <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="https://www.linkedin.com/company/chatmindsai" target="_blank" 
+                           class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors">
+                            <i class="fab fa-linkedin-in"></i>
                         </a>
                     </div>
                 </div>
+            </div>
+            
+            <div class="border-t border-gray-700 pt-6 text-center text-sm text-gray-400">
+                <p>&copy; 2025 ChatMinds AI. All rights reserved.</p>
             </div>
         </div>
     </footer>

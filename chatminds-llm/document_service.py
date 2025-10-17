@@ -5,10 +5,12 @@ import bs4
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain.chains import RetrievalQA
-from langchain.memory import ConversationBufferMemory
+from langchain.chains import RetrievalQA, ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory, ConversationTokenBufferMemory
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain.schema import SystemMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from openai import OpenAI
 from threading import Timer
@@ -28,6 +30,22 @@ persist_directory = './data'
 key = os.environ["OPENAI_API_KEY"]
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
+# Custom prompt template for better responses
+CHATMINDS_PROMPT_TEMPLATE = """You are ChatMinds AI, an intelligent document assistant. Your primary role is to help users understand and find information from their uploaded documents.
+
+When answering questions:
+1. If the question can be answered using the provided context from documents, provide a comprehensive and accurate answer based on that information.
+2. If the context doesn't contain relevant information, politely explain that the information isn't available in the uploaded documents and suggest they upload relevant documents or ask a different question.
+3. Always be helpful and conversational while maintaining accuracy.
+
+Context from documents: {context}
+
+Previous conversation: {chat_history}
+
+Question: {question}
+
+Answer:"""
+
 class StreamingCallbackHandler(BaseCallbackHandler):
     def __init__(self):
         self.tokens = []
@@ -43,9 +61,91 @@ class DocumentService:
     clear_memory_timers = {}  # Tenant-wise clear_memory_timer
 
     @staticmethod
+    def is_greeting(question):
+        """Check if the question is a simple greeting that doesn't need LLM processing"""
+        greetings = [
+            'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening',
+            'how are you', 'how do you do', 'what\'s up', 'whats up', 'howdy',
+            'greetings', 'salutations', 'good day', 'morning', 'afternoon', 'evening'
+        ]
+        
+        question_lower = question.lower().strip()
+        
+        # Remove punctuation for comparison
+        import re
+        question_clean = re.sub(r'[^\w\s]', '', question_lower)
+        
+        # Check if the question is just a greeting
+        return question_clean in greetings or any(
+            question_clean.startswith(greeting) for greeting in greetings
+        )
+    
+    @staticmethod
+    def is_conversational_question(question):
+        """Check if the question is about the AI assistant itself"""
+        conversational_patterns = [
+            'who are you', 'what are you', 'who made you', 'who created you',
+            'what do you do', 'what you do', 'what can you do', 'how do you work', 'what is your purpose',
+            'what is your name', 'are you ai', 'are you artificial intelligence',
+            'tell me about yourself', 'introduce yourself', 'what are your capabilities',
+            'help me', 'how can you help', 'what can you help with'
+        ]
+        
+        question_lower = question.lower().strip()
+        
+        # Remove punctuation for comparison
+        import re
+        question_clean = re.sub(r'[^\w\s]', '', question_lower)
+        
+        return any(pattern in question_clean for pattern in conversational_patterns)
+    
+    @staticmethod
+    def get_conversational_response(question):
+        """Return appropriate responses for conversational questions about the AI"""
+        question_lower = question.lower().strip()
+        
+        if any(word in question_lower for word in ['who are you', 'what are you']):
+            return "I'm ChatMinds AI, your intelligent document assistant. I help you find and understand information from your uploaded documents through natural conversation."
+        
+        elif any(word in question_lower for word in ['who made you', 'who created you']):
+            return "I was created by the ChatMinds development team to help users interact with their documents more efficiently using AI technology."
+        
+        elif any(word in question_lower for word in ['what do you do', 'what you do', 'what can you do', 'capabilities', 'help']):
+            return "I can help you with:\n• Answering questions about your uploaded documents\n• Finding specific information in your files\n• Summarizing document content\n• Explaining complex topics from your documents\n• Having conversations about the content in your knowledge base"
+        
+        elif any(word in question_lower for word in ['how do you work', 'purpose']):
+            return "I use advanced AI technology to understand your documents and provide accurate answers. I analyze the content you've uploaded and use that knowledge to respond to your questions in a conversational way."
+        
+        elif any(word in question_lower for word in ['name']):
+            return "My name is ChatMinds AI. I'm here to help you explore and understand your documents."
+        
+        else:
+            return "I'm ChatMinds AI, your document assistant. I'm here to help you find information and answer questions about your uploaded documents. What would you like to know?"
+
+    @staticmethod
+    def get_greeting_response():
+        """Return a simple greeting response without using LLM"""
+        import random
+        responses = [
+            "Hello! I'm here to help you with questions about your documents. What would you like to know?",
+            "Hi there! I can assist you with information from your uploaded documents. How can I help?",
+            "Good day! I'm ready to answer questions about your documents. What can I help you with?",
+            "Hello! I'm your document assistant. Feel free to ask me anything about your uploaded files.",
+            "Hi! I'm here to help you find information in your documents. What would you like to explore?"
+        ]
+        return random.choice(responses)
+
+    @staticmethod
     def clear_memory(tenant_id):
         if tenant_id in DocumentService.memories:
-            DocumentService.memories[tenant_id] = ConversationBufferMemory()
+            # Reset with token-limited memory
+            DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                max_token_limit=2000,
+                return_messages=True,
+                input_key="question",
+                output_key="answer"
+            )
         if tenant_id in DocumentService.clear_memory_timers:
             DocumentService.clear_memory_timers[tenant_id] = None
 
@@ -123,7 +223,9 @@ class DocumentService:
     @staticmethod
     def load_website(base_url, tenant_id):
         if tenant_id in DocumentService.memories:
-            DocumentService.memories[tenant_id] = ConversationBufferMemory()
+            # Ensure conversation memory always returns message objects so we can
+            # build a chat history string to pass into chains explicitly.
+            DocumentService.memories[tenant_id] = ConversationBufferMemory(return_messages=True)
         if tenant_id in DocumentService.clear_memory_timers:
             DocumentService.clear_memory_timers[tenant_id] = None
 
@@ -238,31 +340,88 @@ class DocumentService:
 
     @staticmethod
     def get_answer(question, tenant_id):
+        # Check if it's a simple greeting - handle locally without LLM
+        if DocumentService.is_greeting(question):
+            greeting_response = DocumentService.get_greeting_response()
+            # Still save to memory for context
+            if tenant_id not in DocumentService.memories:
+                DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                    llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                    max_token_limit=2000,
+                    return_messages=True,
+                    input_key="question",
+                    output_key="answer"
+                )
+            # Save the greeting exchange to memory
+            DocumentService.memories[tenant_id].save_context(
+                {"question": question}, 
+                {"answer": greeting_response}
+            )
+            return {
+                'query': question,
+                'result': greeting_response,
+                'source_documents': []
+            }
+        
+        # Check if it's a conversational question about the AI
+        if DocumentService.is_conversational_question(question):
+            conversational_response = DocumentService.get_conversational_response(question)
+            # Still save to memory for context
+            if tenant_id not in DocumentService.memories:
+                DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                    llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                    max_token_limit=2000,
+                    return_messages=True,
+                    input_key="question",
+                    output_key="answer"
+                )
+            # Save the conversational exchange to memory
+            DocumentService.memories[tenant_id].save_context(
+                {"question": question}, 
+                {"answer": conversational_response}
+            )
+            return {
+                'query': question,
+                'result': conversational_response,
+                'source_documents': []
+            }
+        
         if tenant_id not in DocumentService.memories:
-            DocumentService.memories[tenant_id] = ConversationBufferMemory()
-        DocumentService.memories[tenant_id].chat_memory.add_user_message(question)
+            # Use ConversationTokenBufferMemory to limit token usage
+            # This keeps recent messages and summarizes older ones when token limit is reached
+            DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                max_token_limit=2000,  # Limit conversation history to 2000 tokens
+                return_messages=True,
+                input_key="question",
+                output_key="answer"
+            )
+        
         tenant_directory = os.path.join(persist_directory, tenant_id)
-
         vectordb = Chroma(persist_directory=tenant_directory, embedding_function=embeddings)
-
         retriever = vectordb.as_retriever(search_kwargs={"k": 3})
         llm = ChatOpenAI(temperature=0, model_name='gpt-4o-mini')
 
-        pdf_qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
-        # history = str(DocumentService.memories[tenant_id].chat_memory.messages)
-        # client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        # refined_question = client.chat.completions.create(
-        #     model="gpt-3.5-turbo",
-        #     messages=[
-        #         {"role": "system", "content": "Refine New Question for me. Give only question. Focus previous question first if not clear then focus on earlier questions.Do not hallucinate."},
-        #         {"role": "user", "content": history}
-        #     ]
-        # )
-        llm_response = pdf_qa.invoke(question)
+        # Use ConversationalRetrievalChain to maintain context. To make the
+        # conversational chain more robust across multiple follow-up turns we
+        # also build an explicit chat_history string from the memory and pass
+        # it into the chain. Some chain components (question generators) expect
+        # a chat_history input and may perform better when given the full
+        # history every call.
+        pdf_qa = ConversationalRetrievalChain.from_llm(
+            llm=llm,
+            retriever=retriever,
+            memory=DocumentService.memories[tenant_id],
+            return_source_documents=True
+        )
+
+        # ConversationalRetrievalChain requires chat_history parameter even with memory
+        # Pass empty list as chat_history since memory handles the conversation state
+        llm_response = pdf_qa.invoke({"question": question, "chat_history": []})
 
         serialized_response = {
             'query': question,
-            'result': llm_response['result'],
+            'result': llm_response['answer'],
             'source_documents': [
                 {
                     'metadata': document.metadata
@@ -271,9 +430,7 @@ class DocumentService:
             ]
         }
 
-        DocumentService.memories[tenant_id].chat_memory.add_ai_message(serialized_response['result'])
-
-        print(DocumentService.memories[tenant_id].chat_memory.messages)
+        print("Chat History:", DocumentService.memories[tenant_id].chat_memory.messages)
 
         # Schedule memory clearing after 5 minutes
         if tenant_id not in DocumentService.clear_memory_timers or DocumentService.clear_memory_timers[tenant_id] is None:
@@ -285,11 +442,86 @@ class DocumentService:
     @staticmethod
     def get_answer_stream(question, tenant_id):
         """Generator function for streaming responses"""
+        # Check if it's a simple greeting - handle locally without LLM
+        if DocumentService.is_greeting(question):
+            greeting_response = DocumentService.get_greeting_response()
+            # Still save to memory for context
+            if tenant_id not in DocumentService.memories:
+                DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                    llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                    max_token_limit=2000,
+                    return_messages=True,
+                    input_key="question",
+                    output_key="answer"
+                )
+            # Save the greeting exchange to memory
+            DocumentService.memories[tenant_id].save_context(
+                {"question": question}, 
+                {"answer": greeting_response}
+            )
+            
+            # Simulate streaming for greeting response
+            words = greeting_response.split()
+            for i, word in enumerate(words):
+                is_last = (i == len(words) - 1)
+                word_with_space = word + (" " if not is_last else "")
+                yield {
+                    'token': word_with_space,
+                    'is_last': is_last,
+                    'complete_response': {
+                        'query': question,
+                        'result': greeting_response,
+                        'source_documents': []
+                    } if is_last else None
+                }
+            return
+        
+        # Check if it's a conversational question about the AI
+        if DocumentService.is_conversational_question(question):
+            conversational_response = DocumentService.get_conversational_response(question)
+            # Still save to memory for context
+            if tenant_id not in DocumentService.memories:
+                DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                    llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                    max_token_limit=2000,
+                    return_messages=True,
+                    input_key="question",
+                    output_key="answer"
+                )
+            # Save the conversational exchange to memory
+            DocumentService.memories[tenant_id].save_context(
+                {"question": question}, 
+                {"answer": conversational_response}
+            )
+            
+            # Simulate streaming for conversational response
+            words = conversational_response.split()
+            for i, word in enumerate(words):
+                is_last = (i == len(words) - 1)
+                word_with_space = word + (" " if not is_last else "")
+                yield {
+                    'token': word_with_space,
+                    'is_last': is_last,
+                    'complete_response': {
+                        'query': question,
+                        'result': conversational_response,
+                        'source_documents': []
+                    } if is_last else None
+                }
+            return
+        
         if tenant_id not in DocumentService.memories:
-            DocumentService.memories[tenant_id] = ConversationBufferMemory()
-        DocumentService.memories[tenant_id].chat_memory.add_user_message(question)
+            # Use ConversationTokenBufferMemory to limit token usage
+            # This keeps recent messages and summarizes older ones when token limit is reached
+            DocumentService.memories[tenant_id] = ConversationTokenBufferMemory(
+                llm=ChatOpenAI(temperature=0, model_name='gpt-4o-mini'),
+                max_token_limit=2000,  # Limit conversation history to 2000 tokens
+                return_messages=True,
+                input_key="question",
+                output_key="answer"
+            )
+        
         tenant_directory = os.path.join(persist_directory, tenant_id)
-
         vectordb = Chroma(persist_directory=tenant_directory, embedding_function=embeddings)
         retriever = vectordb.as_retriever(search_kwargs={"k": 3})
         
@@ -302,15 +534,16 @@ class DocumentService:
             callbacks=[streaming_handler]
         )
 
-        pdf_qa = RetrievalQA.from_chain_type(
+        # Use ConversationalRetrievalChain to maintain context
+        pdf_qa = ConversationalRetrievalChain.from_llm(
             llm=llm, 
-            chain_type="stuff", 
             retriever=retriever, 
+            memory=DocumentService.memories[tenant_id],
             return_source_documents=True
         )
-        
-        # Get the complete response (this will trigger streaming)
-        llm_response = pdf_qa.invoke(question)
+        # ConversationalRetrievalChain requires chat_history parameter even with memory
+        # Pass empty list as chat_history since memory handles the conversation state
+        llm_response = pdf_qa.invoke({"question": question, "chat_history": []})
         
         # Get all the streamed tokens
         tokens = streaming_handler.get_tokens()
@@ -321,11 +554,14 @@ class DocumentService:
             yield {
                 'token': token,
                 'is_last': is_last,
-                'complete_response': llm_response if is_last else None
+                'complete_response': {
+                    'query': question,
+                    'result': llm_response['answer'],
+                    'source_documents': llm_response['source_documents']
+                } if is_last else None
             }
         
-        # Store in memory after streaming is complete
-        DocumentService.memories[tenant_id].chat_memory.add_ai_message(llm_response['result'])
+        print("Chat History:", DocumentService.memories[tenant_id].chat_memory.messages)
         
         # Schedule memory clearing after 5 minutes
         if tenant_id not in DocumentService.clear_memory_timers or DocumentService.clear_memory_timers[tenant_id] is None:
