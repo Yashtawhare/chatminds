@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from document_service import DocumentService
 from fastapi.middleware.cors import CORSMiddleware
+import json
 
 app = FastAPI()
 # Add CORS middleware
@@ -83,6 +85,47 @@ async def ask_question(request: QuestionRequest):
 
     answer = DocumentService.get_answer(question, tenant_id)
     return answer
+
+@app.post('/ask_question_stream')
+async def ask_question_stream(request: QuestionRequest):
+    question = request.question
+    tenant_id = request.tenant_id   
+
+    if not question or not tenant_id:
+        raise HTTPException(status_code=400, detail="question and tenant_id is required")
+
+    def generate_response():
+        try:
+            for chunk in DocumentService.get_answer_stream(question, tenant_id):
+                if chunk['is_last']:
+                    # Last chunk - send complete response data
+                    complete_response = chunk['complete_response']
+                    serialized_response = {
+                        'query': question,
+                        'result': complete_response['result'],
+                        'source_documents': [
+                            {'metadata': document.metadata}
+                            for document in complete_response['source_documents']
+                        ]
+                    }
+                    yield f"data: {json.dumps({'type': 'token', 'content': chunk['token'], 'complete': True, 'answer': serialized_response})}\n\n"
+                else:
+                    # Send individual token
+                    yield f"data: {json.dumps({'type': 'token', 'content': chunk['token'], 'complete': False})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 @app.post('/clear_memory')
 async def clear_memory(request: MemoryRequest):

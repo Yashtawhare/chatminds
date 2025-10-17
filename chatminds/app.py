@@ -126,7 +126,11 @@ def register_form():
 
 @app.route('/about_us', methods=['GET'])
 def about_us():
-    return render_template('about_us.html', username=session.get('username'))
+    return render_template('about_us.html', 
+                         username=session.get('username'),
+                         user_role=session.get('role'),
+                         show_nav=True,
+                         show_footer=True)
 
 
 @app.route('/load_documents/<tenant_id>', methods=['GET'])
@@ -333,8 +337,11 @@ def add_document(tenant_id):
     tenant_dir = os.path.join(data_dir, tenant_id)
     docs_dir = os.path.join(tenant_dir, 'docs')
     raw_dir = os.path.join(docs_dir, 'raw')
+    clean_dir = os.path.join(docs_dir, 'clean')
     if not os.path.exists(raw_dir):
         os.makedirs(raw_dir)
+    if not os.path.exists(clean_dir):
+        os.makedirs(clean_dir)
 
     for file in files:
 
@@ -395,6 +402,21 @@ def view_document(document_id, tenant_id):
     return send_file(file_path, as_attachment=False)
 
 
+@app.route('/view_cleaned_document/<document_id>/tenant/<tenant_id>', methods=['GET'])
+def view_cleaned_document(document_id, tenant_id):
+    if not is_logged_in():
+        return redirect(url_for('login'))
+    
+    # Construct the cleaned file path
+    clean_file_path = os.path.join('data', tenant_id, 'docs', 'clean', f'{document_id}_cleaned.txt')
+    
+    if not os.path.exists(clean_file_path):
+        return 'Cleaned document not found', 404
+    
+    # Send the cleaned file
+    return send_file(clean_file_path, as_attachment=False, mimetype='text/plain')
+
+
 # Route for getting all users (for admin)
 @app.route('/users', methods=['GET'])
 def get_all_users():
@@ -422,7 +444,12 @@ def get_all_users():
         }
         user_list.append(user_info)
     
-    return render_template('user_data.html', users=user_list, username=session['username'])
+    return render_template('user_data.html', 
+                         users=user_list, 
+                         username=session['username'],
+                         user_role=session.get('role'),
+                         show_nav=True,
+                         show_footer=True)
 
 
 @app.route('/get_user/<user_id>', methods=['GET'])
@@ -445,7 +472,12 @@ def get_user(user_id):
         'created_at': user[6],
         'updated_at': user[7]
     }
-    return render_template('user_profile.html', user=user_info)
+    return render_template('user_profile.html', 
+                         user=user_info,
+                         username=session.get('username'),
+                         user_role=session.get('role'),
+                         show_nav=True,
+                         show_footer=True)
 
 
 # Route for deleting a user

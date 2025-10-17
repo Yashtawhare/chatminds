@@ -9,6 +9,7 @@ from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferMemory
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
+from langchain.callbacks.base import BaseCallbackHandler
 from openai import OpenAI
 from threading import Timer
 from dotenv import load_dotenv
@@ -16,13 +17,26 @@ import chromadb
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import uuid
+from document_processor import DocumentProcessor
+import asyncio
+from typing import Any, Dict, List
 
 # Load environment variables from .env file
 load_dotenv()
 
 persist_directory = './data'
 key = os.environ["OPENAI_API_KEY"]
-embeddings = OpenAIEmbeddings()
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+class StreamingCallbackHandler(BaseCallbackHandler):
+    def __init__(self):
+        self.tokens = []
+        
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        self.tokens.append(token)
+    
+    def get_tokens(self):
+        return self.tokens
 
 class DocumentService:  
     memories = {} 
@@ -141,40 +155,71 @@ class DocumentService:
     @staticmethod
     def load_document(document_id, data_list, tenant_id):
         document = []
-        # Get the current directory
-        current_directory = os.path.dirname(__file__)
-        # Navigate up one directory level
-        parent_directory = os.path.abspath(os.path.join(current_directory, os.pardir))
-        # Update this path to correctly point to the frontend data directory
-        download_directory = os.path.join(parent_directory, "chatminds-ui","data", tenant_id, "docs", "raw")
+        # Check if running in Docker or locally
+        if os.path.exists("/app/shared_data"):
+            # Docker environment
+            download_directory = os.path.join("/app/shared_data", tenant_id, "docs", "raw")
+            clean_directory = os.path.join("/app/shared_data", tenant_id, "docs", "clean")
+        else:
+            # Local development environment
+            download_directory = os.path.join("./data", tenant_id, "docs", "raw")
+            clean_directory = os.path.join("./data", tenant_id, "docs", "clean")
+        
         tenant_directory = os.path.join(persist_directory, tenant_id)
 
         if not os.path.exists(tenant_directory):
             os.makedirs(tenant_directory)
+        
+        if not os.path.exists(clean_directory):
+            os.makedirs(clean_directory)
 
         for data in data_list:
             file_name = data['name']
             file_type = data['type']
             file_size = data['size']
-            file_path = os.path.join(download_directory, document_id + '.' + file_name.split(".")[-1]) 
+            file_extension = file_name.split(".")[-1]
+            raw_file_path = os.path.join(download_directory, document_id + '.' + file_extension)
+            clean_file_path = os.path.join(clean_directory, document_id + '_cleaned.txt')
 
-            if not os.path.exists(file_path):
+            if not os.path.exists(raw_file_path):
                 # handle file not found exception
-                raise FileNotFoundError(f"File {file_name} not found")
+                raise FileNotFoundError(f"File {raw_file_path} not found")
             
-            if 'text/plain' in file_type:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    text = f.read()
-                loader = TextLoader(file_path)
-                document.extend(loader.load())
+            try:
+                # Use the new document processor to extract, clean, and process the document
+                processed_documents = DocumentProcessor.process_document(
+                    raw_file_path=raw_file_path,
+                    clean_file_path=clean_file_path,
+                    file_type=file_type,
+                    document_id=document_id,
+                    tenant_id=tenant_id,
+                    original_file_name=file_name
+                )
+                
+                document.extend(processed_documents)
+                
+                # Log document statistics
+                with open(clean_file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                stats = DocumentProcessor.get_document_stats(content)
+                print(f"Document {document_id} processed: {stats}")
+                
+            except Exception as e:
+                print(f"Error processing document {document_id}: {str(e)}")
+                # Fallback to original processing method
+                if 'text/plain' in file_type:
+                    with open(raw_file_path, 'r', encoding='utf-8') as f:
+                        text = f.read()
+                    loader = TextLoader(raw_file_path)
+                    document.extend(loader.load())
 
-            elif 'application/pdf' in file_type:
-                loader = PyPDFLoader(file_path)
-                document.extend(loader.load())
+                elif 'application/pdf' in file_type:
+                    loader = PyPDFLoader(raw_file_path)
+                    document.extend(loader.load())
 
-            elif 'application/msword' in file_type or 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' in file_type:
-                loader = Docx2txtLoader(file_path)
-                document.extend(loader.load())
+                elif 'application/msword' in file_type or 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' in file_type:
+                    loader = Docx2txtLoader(raw_file_path)
+                    document.extend(loader.load())
 
         # Split the document into chunks
         document_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
@@ -201,7 +246,7 @@ class DocumentService:
         vectordb = Chroma(persist_directory=tenant_directory, embedding_function=embeddings)
 
         retriever = vectordb.as_retriever(search_kwargs={"k": 3})
-        llm = ChatOpenAI(temperature=0, model_name='gpt-3.5-turbo')
+        llm = ChatOpenAI(temperature=0, model_name='gpt-4o-mini')
 
         pdf_qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
         # history = str(DocumentService.memories[tenant_id].chat_memory.messages)
@@ -236,3 +281,53 @@ class DocumentService:
             DocumentService.clear_memory_timers[tenant_id].start()
 
         return serialized_response
+
+    @staticmethod
+    def get_answer_stream(question, tenant_id):
+        """Generator function for streaming responses"""
+        if tenant_id not in DocumentService.memories:
+            DocumentService.memories[tenant_id] = ConversationBufferMemory()
+        DocumentService.memories[tenant_id].chat_memory.add_user_message(question)
+        tenant_directory = os.path.join(persist_directory, tenant_id)
+
+        vectordb = Chroma(persist_directory=tenant_directory, embedding_function=embeddings)
+        retriever = vectordb.as_retriever(search_kwargs={"k": 3})
+        
+        # Create callback handler for streaming
+        streaming_handler = StreamingCallbackHandler()
+        llm = ChatOpenAI(
+            temperature=0, 
+            model_name='gpt-4o-mini',
+            streaming=True,
+            callbacks=[streaming_handler]
+        )
+
+        pdf_qa = RetrievalQA.from_chain_type(
+            llm=llm, 
+            chain_type="stuff", 
+            retriever=retriever, 
+            return_source_documents=True
+        )
+        
+        # Get the complete response (this will trigger streaming)
+        llm_response = pdf_qa.invoke(question)
+        
+        # Get all the streamed tokens
+        tokens = streaming_handler.get_tokens()
+        
+        # Yield tokens one by one
+        for i, token in enumerate(tokens):
+            is_last = (i == len(tokens) - 1)
+            yield {
+                'token': token,
+                'is_last': is_last,
+                'complete_response': llm_response if is_last else None
+            }
+        
+        # Store in memory after streaming is complete
+        DocumentService.memories[tenant_id].chat_memory.add_ai_message(llm_response['result'])
+        
+        # Schedule memory clearing after 5 minutes
+        if tenant_id not in DocumentService.clear_memory_timers or DocumentService.clear_memory_timers[tenant_id] is None:
+            DocumentService.clear_memory_timers[tenant_id] = Timer(300.0, DocumentService.clear_memory, args=[tenant_id])
+            DocumentService.clear_memory_timers[tenant_id].start()

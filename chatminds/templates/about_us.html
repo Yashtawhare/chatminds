@@ -1,114 +1,179 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us</title>
-    <!-- Include Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
-    <style>
-        body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 0;
-                background-color: #f0f0f0;
-            }
-        .card {
-            border: none;
-            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-            transition: transform 0.3s;  /* Animation */
-        }
-        
-        .card:hover {
-            transform: scale(1.1);  /* Scale the size of the card up */
-        }
-        
-        .card-img-top {
-            width: 150px; /* Set the width */
-            height: 150px; /* Set the height */
-            object-fit: cover; /* Resize the images to fill the container while maintaining aspect ratio */
-            margin: 0 auto;
-        }
-        
-        .card-title {
-            font-weight: bold;
-        }
-        
-        .card-text {
-            color: #777;
-        }
-    </style>
-</head>
-<body>
-    <div style="text-align: center; padding: 20px; background-color: #c2e2b9;">
-        <h1 style="font-size: 2.5em; color: #4CAF50; font-weight: bold; text-transform: uppercase;">ASK-AI</h1>
-        <h2>Admin Panel</h2>
+{% extends "base.html" %}
+
+{% block title %}About Us - ChatMinds AI{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .gradient-bg {
+        background: linear-gradient(-45deg, #4CAF50, #45a049, #66BB6A, #81C784);
+        background-size: 400% 400%;
+        animation: gradient 15s ease infinite;
+    }
+    .team-card {
+        transition: all 0.3s ease;
+    }
+    .team-card:hover {
+        transform: translateY(-10px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="gradient-bg shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="text-center">
+            <h1 class="text-5xl font-bold text-white mb-2 tracking-tight">
+                <i class="fas fa-brain mr-3"></i>ChatMinds AI
+            </h1>
+            <p class="text-white text-lg font-medium">About Our Team</p>
+        </div>
     </div>
-    <nav style="background-color: #f8f8f8; padding: 10px; display: flex; justify-content: space-between;">
-        
-        <a href="/">
-                <button style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 10px;">Home</button>
-        </a>
-        <p style="margin: 0; display: inline;">Welcome, <span style="color: #4CAF50;">{{username}}</span></p>
-        
-        <button style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer;">Logout</button>
-    </nav>
-    <div class="container mt-5">
-        <div class="row">
-            <!-- Team member 1 -->
-            <div class="col-sm-4">
-                <div class="card">
-                    <img class="card-img-top rounded-circle" src="/static/images/lion_king.png" alt="Vaibhav Tawhare">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Vaibhav Tawhare</h5>
-                        <p class="card-text">Sr. Software Engineer</p>
-                    </div>
-                </div>
-            </div>
+</div>
 
-            <!-- Team member 2 -->
-            <div class="col-sm-4">
-                <div class="card">
-                    <img class="card-img-top rounded-circle" src="/static/images/Pikachu.png" alt="Mayur Machhi">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Mayur Machhi</h5>
-                        <p class="card-text">Lead Software Engineer</p>
-                    </div>
-                </div>
-            </div>
+<!-- Main Content -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Mission Section -->
+    <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-6">Our Mission</h2>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            At ChatMinds AI, we're transforming how businesses interact with their documents. 
+            Our AI-powered platform turns static documents into intelligent, conversational experiences 
+            that unlock insights and drive productivity.
+        </p>
+    </div>
 
-            <!-- Team member 3 -->
-            <div class="col-sm-4">
-                <div class="card">
-                    <img class="card-img-top rounded-circle" src="/static/images/anies.png" alt="Osho Upadhyay">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Osho Upadhyay</h5>
-                        <p class="card-text">Software Developer</p>
-                    </div>
-                </div>
+    <!-- Values Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div class="text-center p-6 bg-white rounded-xl shadow-md team-card">
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-lightbulb text-white text-2xl"></i>
             </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">Innovation</h3>
+            <p class="text-gray-600">Pushing the boundaries of AI technology to create smarter, more intuitive document intelligence solutions.</p>
+        </div>
+        
+        <div class="text-center p-6 bg-white rounded-xl shadow-md team-card">
+            <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-users text-white text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">Collaboration</h3>
+            <p class="text-gray-600">Building tools that bring teams together and make knowledge sharing effortless and efficient.</p>
+        </div>
+        
+        <div class="text-center p-6 bg-white rounded-xl shadow-md team-card">
+            <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-shield-alt text-white text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">Security</h3>
+            <p class="text-gray-600">Ensuring your data remains secure and private while delivering powerful AI-driven insights.</p>
         </div>
     </div>
 
-    <div style="text-align: center; font-size: 3em; font-weight: bold; padding-top: 70px; color: rgb(116, 12, 12);">
-        We are HIRING!!!!!!
+    <!-- Team Section -->
+    <div class="text-center mb-12">
+        <h2 class="text-4xl font-bold text-gray-900 mb-6">Meet Our Team</h2>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto mb-12">
+            We're a passionate team of AI researchers, developers, and innovators 
+            dedicated to revolutionizing document intelligence.
+        </p>
+        
+        <!-- Team Members -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 justify-items-center">
+            
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden team-card">
+                <div class="p-6 text-center">
+                    <div class="w-24 h-24 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-chart-line text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Vaibhav Tawhare</h3>
+                    <p class="text-green-600 font-medium mb-3">Data Scientist</p>
+                    <p class="text-gray-600 text-sm">
+                        Expert in data analysis and machine learning algorithms, driving insights from complex datasets.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden team-card">
+                <div class="p-6 text-center">
+                    <div class="w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-laptop-code text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Mayur Machhi</h3>
+                    <p class="text-purple-600 font-medium mb-3">Lead Software Engineer</p>
+                    <p class="text-gray-600 text-sm">
+                        Senior engineer architecting scalable solutions and leading technical development initiatives.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden team-card">
+                <div class="p-6 text-center">
+                    <div class="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-code text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Osho Upadhyay</h3>
+                    <p class="text-orange-600 font-medium mb-3">Software Engineer</p>
+                    <p class="text-gray-600 text-sm">
+                        Skilled developer focused on building robust applications and implementing innovative features.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <footer style="position: fixed; left: 0; bottom: 0; width: 100%; background-color: #d1f1cd; padding: 10px; display: flex; justify-content: center; align-items: center;">
-        <div style="margin-right: 20px;">
-            <p>&copy; 2024 AskAI. All rights reserved.</p>
+    <!-- Technology Section -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 mb-12">
+        <div class="text-center">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Powered by Advanced AI</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-robot text-white"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-900">Machine Learning</h4>
+                </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-language text-white"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-900">Natural Language Processing</h4>
+                </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-search text-white"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-900">Intelligent Search</h4>
+                </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-chart-line text-white"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-900">Analytics</h4>
+                </div>
+            </div>
         </div>
-        <div>
-            <p><a href="/about_us" style="color: rgb(201, 80, 146);">Meet Us @</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+    </div>
+
+    <!-- Contact Section -->
+    <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Get in Touch</h2>
+        <p class="text-xl text-gray-600 mb-8">
+            Ready to transform your document workflow? Let's start a conversation.
+        </p>
+        <div class="flex justify-center space-x-6">
+            <a href="mailto:hello@chatminds.ai" class="inline-flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                <i class="fas fa-envelope mr-2"></i>Contact Us
+            </a>
+            <a href="/" class="inline-flex items-center px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                <i class="fas fa-home mr-2"></i>Back to Home
+            </a>
         </div>
-        <div>
-            <p>
-                <a href="https://www.facebook.com/AskAI" target="_blank" style="color: green;"><i class="fab fa-facebook-f"></i></a>
-                <a href="https://www.twitter.com/AskAI" target="_blank" style="color: green;"><i class="fab fa-twitter"></i></a>
-                <a href="https://www.instagram.com/AskAI" target="_blank" style="color: green;"><i class="fab fa-instagram"></i></a>
-            </p>
-        </div>
-    </footer>
-</body>
-</html>
+    </div>
+</div>
+{% endblock %}
