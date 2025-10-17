@@ -95,6 +95,8 @@ def forbidden_error(error):
 @app.errorhandler(401)
 def unauthorized_error(error):
     """Handle 401 errors"""
+    # Clear potentially corrupted session
+    clear_session_safely()
     return render_template('error.html', 
                           error_code='401',
                           error_title='Unauthorized Access',
@@ -116,8 +118,9 @@ def handle_database_error(error):
 @app.errorhandler(ValidationError)
 def handle_validation_error(error):
     """Handle validation errors"""
+    clear_session_safely()  # Clear session on validation errors
     flash(str(error), 'error')
-    return redirect(request.referrer or url_for('login'))
+    return redirect(request.referrer or url_for('login_form'))
 
 @handle_database_operation
 
@@ -211,12 +214,12 @@ def index():
         else:
             return redirect(url_for('tenant_data', tenant_id=session['tenant_id']))
     else:
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     
 @app.route('/create_tables')
 def create_tables_route():
     create_tables()
-    return redirect(url_for('login'))
+    return redirect(url_for('login_form'))
     
 
 @app.route('/login', methods=['GET'])
@@ -244,7 +247,7 @@ def about_us():
 @app.route('/load_documents/<tenant_id>', methods=['GET'])
 def load_documents(tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     user_role = session.get('role')
     if user_role == 'admin':
         home_url = '/'
@@ -397,6 +400,9 @@ def login():
     if is_logged_in():
         return redirect(url_for('index'))
     
+    # Clear any existing session data to prevent conflicts
+    clear_session_safely()
+    
     try:
         # Validate input
         form_data = {
@@ -433,7 +439,7 @@ def login():
                 logger.warning(f"Failed login attempt for user: {username} (incorrect password)")
                 return redirect(url_for('login_form'))
             
-            # Successful login
+            # Successful login - set session data
             session['username'] = username
             session['user_id'] = user[0]
             session['tenant_id'] = user[5]
@@ -453,25 +459,66 @@ def login():
             conn.close()
             
     except ValidationError as e:
+        clear_session_safely()  # Clear session on validation error
         flash(str(e), 'error')
         return redirect(url_for('login_form'))
     except DatabaseError as e:
+        clear_session_safely()  # Clear session on database error
         logger.error(f"Database error during login: {str(e)}")
         flash('Login service is temporarily unavailable. Please try again later.', 'error')
         return redirect(url_for('login_form'))
     except Exception as e:
+        clear_session_safely()  # Clear session on any unexpected error
         logger.error(f"Unexpected error during login: {str(e)}")
         flash('An unexpected error occurred. Please try again.', 'error')
         return redirect(url_for('login_form'))
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for('login'))
+    """Logout route with proper session cleanup"""
+    username = session.get('username', 'Unknown user')
+    clear_session_safely()
+    logger.info(f"User {username} logged out successfully")
+    flash('You have been logged out successfully.', 'info')
+    return redirect(url_for('login_form'))
 
 
 def is_logged_in():
-    return 'username' in session
+    """Check if user is logged in and session is valid"""
+    if 'username' not in session:
+        return False
+    
+    # Additional session validation
+    required_session_keys = ['username', 'user_id', 'tenant_id', 'role']
+    for key in required_session_keys:
+        if key not in session:
+            # Session is corrupted, clear it
+            session.clear()
+            return False
+    
+    return True
+
+def clear_session_safely():
+    """Safely clear session data"""
+    session.clear()
+    logger.info("Session cleared due to error or logout")
+
+@app.before_request
+def check_session_integrity():
+    """Check session integrity before each request"""
+    # Skip session check for static files and auth routes
+    if request.endpoint in ['static', 'login_form', 'login', 'register_form', 'register', 'seed', 'create_tables_route']:
+        return
+    
+    # If user claims to be logged in but session is incomplete, clear it
+    if 'username' in session:
+        required_keys = ['username', 'user_id', 'tenant_id', 'role']
+        missing_keys = [key for key in required_keys if key not in session]
+        if missing_keys:
+            logger.warning(f"Corrupted session detected, missing keys: {missing_keys}")
+            clear_session_safely()
+            flash('Your session has expired. Please log in again.', 'warning')
+            return redirect(url_for('login_form'))
 
 
 @app.route('/add_tenant', methods=['POST'])
@@ -545,7 +592,7 @@ def get_all_tenants():
 @app.route('/edit_tenant/<tenant_id>', methods=['PUT'])
 def edit_tenant(tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     new_tenant_name = request.form['new_tenant_name']
     conn, cursor = get_db_connection()
     cursor.execute('''UPDATE tenants SET tenant_name = ?, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = ?''', (new_tenant_name, tenant_id))
@@ -557,7 +604,7 @@ def edit_tenant(tenant_id):
 @app.route('/delete_tenant/<tenant_id>', methods=['DELETE'])
 def delete_tenant(tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     conn, cursor = get_db_connection()
     cursor.execute('''DELETE FROM tenants WHERE tenant_id = ?''', (tenant_id,))
     conn.commit()
@@ -630,7 +677,7 @@ def tenant_data(tenant_id):
 @app.route('/documents/<tenant_id>', methods=['GET'])
 def get_documents(tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     conn, cursor = get_db_connection()
     tenant = cursor.execute('''SELECT * FROM tenants WHERE tenant_id = ?''', (tenant_id,))
     if tenant.fetchone() is None:
@@ -645,7 +692,7 @@ def get_documents(tenant_id):
 @app.route('/add_document/<tenant_id>', methods=['POST'])
 def add_document(tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     
     if tenant_id is None:
         return jsonify({'message': 'Tenant ID is required'}), 400
@@ -692,7 +739,7 @@ def add_document(tenant_id):
 @app.route('/delete_document/<document_id>', methods=['DELETE'])
 def delete_document(document_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     conn, cursor = get_db_connection()
     cursor.execute('''DELETE FROM documents WHERE document_id = ?''', (document_id,))
     conn.commit()
@@ -703,7 +750,7 @@ def delete_document(document_id):
 @app.route('/view_document/<document_id>/tenant/<tenant_id>', methods=['GET'])
 def view_document(document_id, tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     conn, cursor = get_db_connection()
     cursor.execute('''SELECT * FROM documents WHERE document_id = ? AND tenant_id = ?''', (document_id, tenant_id))
     document = cursor.fetchone()
@@ -728,7 +775,7 @@ def view_document(document_id, tenant_id):
 @app.route('/view_cleaned_document/<document_id>/tenant/<tenant_id>', methods=['GET'])
 def view_cleaned_document(document_id, tenant_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     
     # Construct the cleaned file path
     clean_file_path = os.path.join('data', tenant_id, 'docs', 'clean', f'{document_id}_cleaned.txt')
@@ -744,7 +791,7 @@ def view_cleaned_document(document_id, tenant_id):
 @app.route('/users', methods=['GET'])
 def get_all_users():
     if not is_logged_in() or session['role'] != 'admin':
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     
     # Connect to the database
     conn, cursor = get_db_connection()
@@ -778,7 +825,7 @@ def get_all_users():
 @app.route('/get_user/<user_id>', methods=['GET'])
 def get_user(user_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login_form'))
     
     conn, cursor = get_db_connection()
     user = cursor.execute('''SELECT * FROM users WHERE user_id = ?''', (user_id,)).fetchone()
