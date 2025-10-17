@@ -5,54 +5,149 @@ services:
     build:
       context: ./chatminds
       dockerfile: Dockerfile
+    container_name: chatminds-web
     ports:
       - "5000:5000"
     environment:
-      - FLASK_ENV=production
-      - FLASK_DEBUG=false
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///app/askai.db}
+      - LLM_SERVICE_URL=${LLM_SERVICE_URL:-http://chatminds-llm:8000}
+      - UPLOAD_FOLDER=${UPLOAD_FOLDER:-/app/data/uploads}
+      - MAX_CONTENT_LENGTH=${MAX_CONTENT_LENGTH:-104857600}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
     volumes:
-      - ./chatminds/data:/app/data
-      - ./chatminds/askai.db:/app/askai.db
+      - chatminds_data:/app/data
+      - chatminds_logs:/app/logs
+      - chatminds_uploads:/app/data/uploads
     depends_on:
       - chatminds-llm
     networks:
       - chatminds-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
   chatminds-llm:
     build:
       context: ./chatminds-llm
       dockerfile: Dockerfile
+    container_name: chatminds-llm
     ports:
       - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2000}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+      - CHUNK_SIZE=${CHUNK_SIZE:-1000}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-      - ./chatminds-llm/data:/app/data
-      - ./chatminds/data:/app/shared_data
+      - llm_data:/app/data
+      - chatminds_data:/app/shared_data
+      - llm_logs:/app/logs
     networks:
       - chatminds-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
   nginx:
     image: nginx:alpine
+    container_name: chatminds-nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
     depends_on:
-      - chatminds-web
-      - chatminds-llm
+      chatminds-web:
+        condition: service_healthy
+      chatminds-llm:
+        condition: service_healthy
     networks:
       - chatminds-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
 networks:
   chatminds-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   chatminds_data:
+    driver: local
   llm_data:
+    driver: local
+  chatminds_logs:
+    driver: local
+  llm_logs:
+    driver: local
+  chatminds_uploads:
+    driver: local
+  nginx_cache:
+    driver: local
+  nginx_logs:
+    driver: local
