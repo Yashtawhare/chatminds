@@ -6,6 +6,7 @@ import uuid
 import os
 import logging
 from functools import wraps
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'osho'
@@ -923,6 +924,32 @@ def delete_user(user_id):
     conn.close()
     
     return jsonify({'message': 'User deleted successfully'}), 200
+
+
+# Health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Docker and load balancers"""
+    try:
+        # Check database connection
+        conn, cursor = get_db_connection()
+        cursor.execute("SELECT 1")
+        conn.close()
+        
+        return jsonify({
+            'status': 'healthy',
+            'service': 'chatminds-web',
+            'timestamp': str(datetime.utcnow()),
+            'version': '1.0.0'
+        }), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'service': 'chatminds-web',
+            'error': str(e),
+            'timestamp': str(datetime.utcnow())
+        }), 503
 
     
 if __name__ == '__main__':

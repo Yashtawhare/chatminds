@@ -140,6 +140,36 @@ async def get_history(tenant_id: str):
         raise HTTPException(status_code=404, detail="Tenant ID not found")
     return DocumentService.memories[tenant_id].chat_memory.messages
 
+
+@app.get('/health')
+async def health_check():
+    """Health check endpoint for Docker and load balancers"""
+    try:
+        # Basic health check - could be extended to check OpenAI API connection
+        import os
+        from datetime import datetime
+        
+        # Check if OpenAI API key is configured
+        openai_key_configured = bool(os.getenv('OPENAI_API_KEY'))
+        
+        return {
+            'status': 'healthy',
+            'service': 'chatminds-llm',
+            'timestamp': datetime.utcnow().isoformat(),
+            'version': '1.0.0',
+            'openai_configured': openai_key_configured
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=503, 
+            detail={
+                'status': 'unhealthy',
+                'service': 'chatminds-llm',
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        )
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
