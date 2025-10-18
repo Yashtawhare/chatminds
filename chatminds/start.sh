@@ -52,7 +52,7 @@ else
         --worker-class sync \
         --worker-connections 1000 \
         --timeout 300 \
-        --keepalive 5 \
+        --keep-alive 5 \
         --max-requests 1000 \
         --max-requests-jitter 100 \
         --preload \
